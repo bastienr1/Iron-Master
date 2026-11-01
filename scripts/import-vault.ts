@@ -18,6 +18,7 @@ import { join, resolve } from 'node:path'
 import process from 'node:process'
 import { createClient } from '@supabase/supabase-js'
 import { PROGRAM_SLOTS } from '../supabase/seed/program.ts'
+import { parseDay } from '../src/lib/program.ts'
 import { MEAL_LIBRARY } from '../supabase/seed/meals.ts'
 import { parseFrontmatter, parseNutritionNote, parseSessionNote, sessionTotals } from '../src/lib/vaultParse.ts'
 import { decideSessions, disagreements, countVerdicts } from '../src/lib/progression.ts'
@@ -108,9 +109,14 @@ function readNotes(dir: string): { path: string; rel: string; md: string }[] {
 // and are skipped, so the import never overwrites app rows with their own echo.
 const notExported = (md: string) => parseFrontmatter(md).source !== 'iron-master'
 
-const sessionNotes = readNotes(join(VAULT_ROOT, 'Health', 'Physique-Log')).filter(
+const allSessionNotes = readNotes(join(VAULT_ROOT, 'Health', 'Physique-Log')).filter(
   n => parseFrontmatter(n.md).type === 'physique-session' && notExported(n.md),
 )
+// Walks and other non-lifting sessions (day: Walk) have no program slot and no
+// place in `sessions`, whose day is one of the four lifting days. Skip and report them.
+const isLiftingDay = (md: string) => parseDay(parseFrontmatter(md).day) !== null
+const sessionNotes = allSessionNotes.filter(n => isLiftingDay(n.md))
+const skippedSessions = allSessionNotes.filter(n => !isLiftingDay(n.md)).map(n => `${n.rel} (day: ${parseFrontmatter(n.md).day ?? ''})`)
 const nutritionNotes = readNotes(join(VAULT_ROOT, 'Health', 'Nutrition-Log')).filter(
   n => parseFrontmatter(n.md).type === 'nutrition-day' && notExported(n.md),
 )
@@ -169,8 +175,16 @@ async function upsertRows(table: string, keyOf: (r: Row) => string, existing: Ro
     }
   }
   if (toWrite.length && !DRY_RUN) {
-    const { error } = await db().from(table).upsert(toWrite, { onConflict })
-    if (error) throw new Error(`${table}: ${error.message}`)
+    // PostgREST fills keys missing from some rows of a bulk upsert with null,
+    // so a batch mixing new rows (no id) and changed rows (with id) would write
+    // id = null. Send the two groups separately.
+    const fresh = toWrite.filter(r => r.id === undefined)
+    const changed = toWrite.filter(r => r.id !== undefined)
+    for (const batch of [fresh, changed]) {
+      if (!batch.length) continue
+      const { error } = await db().from(table).upsert(batch, { onConflict })
+      if (error) throw new Error(`${table}: ${error.message}`)
+    }
   }
 }
 
@@ -203,6 +217,10 @@ async function main() {
   }
   console.log('')
   console.log(`Parsed ${totals.sessions} sessions, ${totals.exercises} exercises, ${totals.sets} sets, ${totals.reps} reps`)
+  if (skippedSessions.length) {
+    console.log(`Skipped ${skippedSessions.length} non-lifting session${skippedSessions.length === 1 ? '' : 's'}:`)
+    for (const s of skippedSessions) console.log(`  ${s}`)
+  }
   console.log(`Engine: ${verdicts.push} push · ${verdicts.stay} stay · ${verdicts.progress_bw} bodyweight progression`)
   console.log(`Nutrition: ${nutritionDays.length} days (${nutritionDays.filter(d => d.status === 'done').length} done, ${nutritionDays.filter(d => d.status === 'in-progress').length} in progress), ${mealCount} meals`)
   console.log(`Meal library: ${MEAL_LIBRARY.length} seed meals`)
