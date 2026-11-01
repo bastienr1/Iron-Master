@@ -1,5 +1,6 @@
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 import Login from './pages/Login.tsx'
+import Confirm from './pages/Confirm.tsx'
 import Progress from './pages/Progress.tsx'
 import { useSession } from './lib/auth.ts'
 
@@ -14,8 +15,10 @@ export default function App() {
     )
   }
 
-  // Every route requires a session: signed out, everything is the sign-in page.
-  if (!user) return <Login />
+  // Signed out: the email link's confirm page is the only route besides sign-in.
+  if (!user) {
+    return window.location.pathname === '/auth/confirm' ? <Confirm /> : <Login />
+  }
 
   return (
     <BrowserRouter>
