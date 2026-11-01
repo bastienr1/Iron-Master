@@ -70,6 +70,17 @@ export default function Login() {
             >
               {busy ? 'Sending…' : 'Send code'}
             </button>
+            <button
+              type="button"
+              disabled={!email.trim()}
+              onClick={() => {
+                setError(null)
+                setStep('code')
+              }}
+              className="min-h-11 rounded-md border border-line font-sans text-sm text-muted disabled:opacity-50"
+            >
+              I already have a code
+            </button>
           </form>
         </>
       ) : (
