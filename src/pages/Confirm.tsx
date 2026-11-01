@@ -12,24 +12,35 @@ import { verifyTokenHash } from '../lib/auth.ts'
 
 const OTP_TYPES: readonly EmailOtpType[] = ['email', 'magiclink', 'signup', 'invite', 'recovery', 'email_change']
 
+function readLink(): { tokenHash: string | null; type: EmailOtpType } {
+  const params = new URLSearchParams(window.location.search)
+  const rawType = params.get('type') ?? 'email'
+  return {
+    tokenHash: params.get('token_hash'),
+    type: (OTP_TYPES as readonly string[]).includes(rawType) ? (rawType as EmailOtpType) : 'email',
+  }
+}
+
 export default function Confirm() {
-  const [error, setError] = useState<string | null>(null)
+  const [link] = useState(readLink)
+  const [verifyError, setVerifyError] = useState<string | null>(null)
+  const error = link.tokenHash
+    ? verifyError
+    : 'This link is missing its token. Request a new code from the sign-in page.'
 
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search)
-    const tokenHash = params.get('token_hash')
-    const rawType = params.get('type') ?? 'email'
-    const type = (OTP_TYPES as readonly string[]).includes(rawType) ? (rawType as EmailOtpType) : 'email'
-    if (!tokenHash) {
-      setError('This link is missing its token. Request a new code from the sign-in page.')
-      return
-    }
-    verifyTokenHash(tokenHash, type).then(res => {
-      if (res.error) setError(res.error)
+    if (!link.tokenHash) return
+    let cancelled = false
+    verifyTokenHash(link.tokenHash, link.type).then(res => {
+      if (cancelled) return
+      if (res.error) setVerifyError(res.error)
       else window.history.replaceState(null, '', '/progress')
       // On success the auth listener in App renders the app.
     })
-  }, [])
+    return () => {
+      cancelled = true
+    }
+  }, [link])
 
   return (
     <main className="min-h-screen bg-ground text-ink flex flex-col px-5 pt-16 pb-10 max-w-md mx-auto">
