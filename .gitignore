@@ -1,0 +1,21 @@
+# Environment (service-role key lives here, never committed)
+.env
+.env.local
+*.local
+
+# Logs
+logs
+*.log
+npm-debug.log*
+
+node_modules
+dist
+dist-ssr
+
+# Editor
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+
+.vercel

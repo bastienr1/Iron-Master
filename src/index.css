@@ -1,0 +1,35 @@
+@import "tailwindcss";
+
+/* Design tokens from the Iron Master design canvas. Bumper-plate colours as
+   meaning: red = calories, blue = protein / STAY, yellow = fiber / New,
+   green = training / PUSH. */
+@theme {
+  --color-ground: #101615;
+  --color-surface: #1a2321;
+  --color-line: #2c3836;
+  --color-ink: #f2f5f4;
+  --color-muted: #9fb0ad;
+  --color-plate-red: #e5483d;
+  --color-plate-blue: #4a7be0;
+  --color-plate-yellow: #f2be1a;
+  --color-plate-green: #2fae64;
+
+  --font-display: "Barlow Condensed", "Arial Narrow", Impact, sans-serif;
+  --font-sans: "Instrument Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+}
+
+@layer base {
+  html {
+    background-color: var(--color-ground);
+  }
+  body {
+    margin: 0;
+    min-height: 100vh;
+    background-color: var(--color-ground);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+}
