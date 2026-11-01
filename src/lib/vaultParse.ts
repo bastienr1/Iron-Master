@@ -49,6 +49,29 @@ export interface ParsedSession {
   unread: string[]
 }
 
+export type MealAccuracy = 'label' | 'weighed' | 'estimated'
+
+export interface ParsedMealItem {
+  name: string
+  grams: number | null
+  kcal: number
+  protein_g: number
+  fiber_g: number | null
+  accuracy: MealAccuracy
+}
+
+export interface ParsedMeal {
+  position: number
+  slot: string
+  name: string
+  items: ParsedMealItem[]
+  kcal: number
+  protein_g: number
+  fiber_g: number | null
+  accuracy: MealAccuracy
+  raw_text: string
+}
+
 export interface ParsedNutritionDay {
   date: string
   path: string
@@ -58,6 +81,8 @@ export interface ParsedNutritionDay {
   fiber_g: number | null
   sleep_h: number | null
   status: 'in-progress' | 'done' | null
+  meals: ParsedMeal[]
+  unread: string[]
 }
 
 // ---------------------------------------------------------------------------
@@ -334,9 +359,99 @@ export function parseSessionNote(markdown: string, path: string): ParsedSession 
   return { date, day, path, exercises, unread }
 }
 
+function cleanNumber(cell: string): number | null {
+  const t = cell.replace(/\*\*/g, '').replace(/[~,]/g, '').trim()
+  if (t === '') return null
+  const m = /^-?\d+(?:\.\d+)?/.exec(t)
+  return m ? Number(m[0]) : null
+}
+
+function accuracyOf(text: string): MealAccuracy {
+  if (/weighed/i.test(text)) return 'weighed'
+  if (/\blabel/i.test(text)) return 'label'
+  return 'estimated'
+}
+
+/** "Dinner ✅ (Time For Thai, shared)" → { slot: "Dinner", venue: "Time For Thai, shared" } */
+function splitSlot(cell: string): { slot: string; venue: string | null } {
+  const venueMatch = /\(([^)]*)\)/.exec(cell)
+  let venue = venueMatch ? venueMatch[1].trim() : null
+  if (venue && /^~?\d{1,2}:\d{2}$/.test(venue)) venue = null // a time, not a venue
+  const slot = cell
+    .replace(/\([^)]*\)/g, ' ')
+    .replace(/[✅✔☑]/g, ' ')
+    .replace(/\*\*/g, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+  return { slot, venue }
+}
+
+function shortName(food: string): string {
+  const cut = food.split(/[:(,—]/)[0].trim()
+  return cut.length > 48 ? `${cut.slice(0, 45).trim()}…` : cut
+}
+
+const ZERO_KEEP = /supplement|creatine|omega|vitamin/i
+
+export function parseMealTable(markdown: string, path: string): { meals: ParsedMeal[]; unread: string[] } {
+  const meals: ParsedMeal[] = []
+  const unread: string[] = []
+  const table = extractTables(markdown).find(t => col(t.header, 'Meal') >= 0 && col(t.header, 'Food') >= 0)
+  if (!table) return { meals, unread }
+  const cMeal = col(table.header, 'Meal')
+  const cFood = col(table.header, 'Food')
+  const cKcal = col(table.header, 'kcal')
+  const cProt = col(table.header, 'Protein (g)')
+  if (cKcal < 0 || cProt < 0) {
+    unread.push(`${path}: meal table header missing kcal / Protein (g)`)
+    return { meals, unread }
+  }
+  let position = 0
+  for (const row of table.rows) {
+    const mealCell = (row.cells[cMeal] ?? '').trim()
+    const food = (row.cells[cFood] ?? '').trim()
+    if (/^\*\*/.test(mealCell)) continue // Total / Running total
+    const kcal = cleanNumber(row.cells[cKcal] ?? '')
+    const protein = cleanNumber(row.cells[cProt] ?? '')
+    if (!mealCell && !food) continue
+    if (kcal === null && protein === null) continue // planned slot, nothing eaten yet
+    if (kcal === null || protein === null) {
+      unread.push(`${path}: meal row with only one of kcal / protein — ${row.line.trim()}`)
+      continue
+    }
+    const item: ParsedMealItem = { name: food, grams: null, kcal, protein_g: protein, fiber_g: null, accuracy: accuracyOf(`${mealCell} ${food}`) }
+    if (!mealCell && meals.length) {
+      // Continuation row: another dish of the previous meal.
+      const prev = meals[meals.length - 1]
+      prev.items.push(item)
+      prev.kcal += kcal
+      prev.protein_g = Math.round((prev.protein_g + protein) * 10) / 10
+      prev.raw_text += ` + ${food}`
+      if (item.accuracy === 'estimated') prev.accuracy = 'estimated'
+      continue
+    }
+    if (kcal === 0 && protein === 0 && !ZERO_KEEP.test(`${mealCell} ${food}`)) continue // skipped / coffee only
+    const { slot, venue } = splitSlot(mealCell)
+    position++
+    meals.push({
+      position,
+      slot,
+      name: venue ?? shortName(food),
+      items: [item],
+      kcal,
+      protein_g: protein,
+      fiber_g: null,
+      accuracy: item.accuracy,
+      raw_text: food,
+    })
+  }
+  return { meals, unread }
+}
+
 export function parseNutritionNote(markdown: string, path: string): ParsedNutritionDay {
   const fm = parseFrontmatter(markdown)
   const status = fm.status === 'done' || fm.status === 'in-progress' ? fm.status : null
+  const { meals, unread } = parseMealTable(markdown, path)
   return {
     date: fm.date ?? '',
     path,
@@ -346,6 +461,8 @@ export function parseNutritionNote(markdown: string, path: string): ParsedNutrit
     fiber_g: numberOrNull(fm.fiber_g),
     sleep_h: numberOrNull(fm.sleep_h),
     status,
+    meals,
+    unread,
   }
 }
 

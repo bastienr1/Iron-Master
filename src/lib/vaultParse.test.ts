@@ -163,3 +163,29 @@ test('nutrition frontmatter: 5 days, kcal, status', () => {
   assert.equal(days[0].fiber_g, 22)
   assert.equal(days[0].sleep_h, null)
 })
+
+test('meal tables: one meal per eaten row, continuation rows fold into the previous meal', () => {
+  const days = loadFixtureNutrition()
+  const by = (d: string) => days.find(x => x.date === d)!
+  assert.deepEqual(days.map(d => d.meals.length), [6, 5, 5, 7, 5])
+  for (const d of days) assert.deepEqual(d.unread, [], d.path)
+
+  const dtf = by('2026-10-29').meals.find(m => m.slot === 'Dinner')!
+  assert.equal(dtf.name, 'Din Tai Fung')
+  assert.equal(dtf.items.length, 4)
+  assert.equal(dtf.kcal, 1399)
+  assert.equal(dtf.protein_g, 73.5)
+
+  const sum = (d: string) => by(d).meals.reduce((n, m) => n + m.kcal, 0)
+  assert.equal(sum('2026-10-28'), 2910)
+  assert.equal(sum('2026-10-31'), 2933)
+  assert.equal(sum('2026-11-01'), 1999)
+
+  const lunch = by('2026-11-01').meals.find(m => m.slot === 'Lunch')!
+  assert.equal(lunch.accuracy, 'weighed')
+  assert.equal(lunch.name, "JT's Manukan Grille")
+  const thai = by('2026-10-30').meals.find(m => m.slot === 'Dinner')!
+  assert.equal(thai.name, 'Time For Thai, shared')
+  assert.equal(by('2026-10-28').meals[0].name, '2 grilled white bread')
+  assert.equal(by('2026-10-29').meals[0].name, 'Usual breakfast')
+})

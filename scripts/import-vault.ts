@@ -18,6 +18,7 @@ import { join, resolve } from 'node:path'
 import process from 'node:process'
 import { createClient } from '@supabase/supabase-js'
 import { PROGRAM_SLOTS } from '../supabase/seed/program.ts'
+import { MEAL_LIBRARY } from '../supabase/seed/meals.ts'
 import { parseFrontmatter, parseNutritionNote, parseSessionNote, sessionTotals } from '../src/lib/vaultParse.ts'
 import { decideSessions, disagreements, countVerdicts } from '../src/lib/progression.ts'
 
@@ -103,18 +104,23 @@ function readNotes(dir: string): { path: string; rel: string; md: string }[] {
     .map(f => ({ path: join(dir, f), rel: `${dir.slice(VAULT_ROOT.length + 1).replace(/\\/g, '/')}/${f}`, md: readFileSync(join(dir, f), 'utf8') }))
 }
 
+// Notes the app itself exported (scripts/export-vault.ts) carry `source: iron-master`
+// and are skipped, so the import never overwrites app rows with their own echo.
+const notExported = (md: string) => parseFrontmatter(md).source !== 'iron-master'
+
 const sessionNotes = readNotes(join(VAULT_ROOT, 'Health', 'Physique-Log')).filter(
-  n => parseFrontmatter(n.md).type === 'physique-session',
+  n => parseFrontmatter(n.md).type === 'physique-session' && notExported(n.md),
 )
 const nutritionNotes = readNotes(join(VAULT_ROOT, 'Health', 'Nutrition-Log')).filter(
-  n => parseFrontmatter(n.md).type === 'nutrition-day',
+  n => parseFrontmatter(n.md).type === 'nutrition-day' && notExported(n.md),
 )
 
 const parsedSessions = sessionNotes.map(n => parseSessionNote(n.md, n.rel))
 const nutritionDays = nutritionNotes.map(n => parseNutritionNote(n.md, n.rel))
 const decided = decideSessions(parsedSessions)
 
-const unread = parsedSessions.flatMap(s => s.unread)
+const unread = [...parsedSessions.flatMap(s => s.unread), ...nutritionDays.flatMap(d => d.unread)]
+const mealCount = nutritionDays.reduce((n, d) => n + d.meals.length, 0)
 const totals = sessionTotals(parsedSessions)
 const verdicts = countVerdicts(decided)
 const disagree = disagreements(decided)
@@ -125,11 +131,21 @@ const disagree = disagreements(decided)
 type Row = Record<string, unknown>
 const counts = { inserted: 0, changed: 0, unchanged: 0 }
 
+/** Stable JSON: Postgres jsonb reorders object keys, so compare with sorted keys. */
+function canon(x: unknown): string {
+  if (Array.isArray(x)) return `[${x.map(canon).join(',')}]`
+  if (x && typeof x === 'object') {
+    const o = x as Record<string, unknown>
+    return `{${Object.keys(o).sort().map(k => `${JSON.stringify(k)}:${canon(o[k])}`).join(',')}}`
+  }
+  return JSON.stringify(x)
+}
+
 function same(a: unknown, b: unknown): boolean {
   if (a === null || a === undefined) return b === null || b === undefined
   if (typeof a === 'number' && typeof b === 'string') return a === Number(b)
   if (typeof a === 'string' && typeof b === 'number') return Number(a) === b
-  if (typeof a === 'object' || typeof b === 'object') return JSON.stringify(a) === JSON.stringify(b)
+  if (typeof a === 'object' || typeof b === 'object') return canon(a) === canon(b)
   return a === b
 }
 
@@ -188,7 +204,8 @@ async function main() {
   console.log('')
   console.log(`Parsed ${totals.sessions} sessions, ${totals.exercises} exercises, ${totals.sets} sets, ${totals.reps} reps`)
   console.log(`Engine: ${verdicts.push} push · ${verdicts.stay} stay · ${verdicts.progress_bw} bodyweight progression`)
-  console.log(`Nutrition: ${nutritionDays.length} days (${nutritionDays.filter(d => d.status === 'done').length} done, ${nutritionDays.filter(d => d.status === 'in-progress').length} in progress)`)
+  console.log(`Nutrition: ${nutritionDays.length} days (${nutritionDays.filter(d => d.status === 'done').length} done, ${nutritionDays.filter(d => d.status === 'in-progress').length} in progress), ${mealCount} meals`)
+  console.log(`Meal library: ${MEAL_LIBRARY.length} seed meals`)
   if (disagree.length) {
     console.log(`Verdict disagreements: ${disagree.length}`)
     for (const e of disagree) console.log(`  ${e.exercise_key}: note says ${e.logged_verdict}, engine says ${e.decision.verdict}`)
@@ -280,6 +297,59 @@ async function main() {
       source_path: d.path,
     })),
     'user_id,date',
+  )
+
+  // meals (under their nutrition day)
+  const daysNow = await existingFor('nutrition_days')
+  const dayId = new Map(daysNow.map(d => [String(d.date), d.id as string]))
+  if (DRY_RUN) for (const d of nutritionDays) dayId.set(d.date, `dry-${d.date}`)
+  const dayIds = [...dayId.values()]
+  const existingMeals =
+    dayIds.length && !DRY_RUN
+      ? await rowsOf('meals', db().from('meals').select('*').in('nutrition_day_id', dayIds))
+      : []
+  const incomingMeals: Row[] = []
+  for (const d of nutritionDays) {
+    const id = dayId.get(d.date)
+    if (!id) throw new Error(`nutrition day ${d.date} missing after upsert`)
+    for (const m of d.meals) {
+      incomingMeals.push({
+        nutrition_day_id: id,
+        position: m.position,
+        slot: m.slot,
+        name: m.name,
+        items: m.items,
+        kcal: m.kcal,
+        protein_g: m.protein_g,
+        fiber_g: m.fiber_g,
+        accuracy: m.accuracy,
+        source: 'vault',
+        raw_text: m.raw_text,
+      })
+    }
+  }
+  await upsertRows('meals', r => `${r.nutrition_day_id}/${r.position}`, existingMeals, incomingMeals, 'nutrition_day_id,position')
+
+  // meal_library (seed from the facts sheet; app-added rows are left alone)
+  const existingLib = await existingFor('meal_library')
+  await upsertRows(
+    'meal_library',
+    r => String(r.name),
+    existingLib.filter(r => r.source === 'sheet'),
+    MEAL_LIBRARY.map(m => ({
+      user_id: USER_ID,
+      name: m.name,
+      category: m.category,
+      portion: m.portion,
+      kcal: m.kcal,
+      protein_g: m.protein_g,
+      fiber_g: m.fiber_g,
+      accuracy: m.accuracy,
+      items: m.items,
+      notes: m.notes,
+      source: 'sheet',
+    })),
+    'user_id,name',
   )
 
   console.log(

@@ -1,7 +1,13 @@
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
+import AppShell from './components/AppShell.tsx'
 import Login from './pages/Login.tsx'
 import Confirm from './pages/Confirm.tsx'
+import Today from './pages/Today.tsx'
+import Log from './pages/Log.tsx'
+import Train from './pages/Train.tsx'
 import Progress from './pages/Progress.tsx'
+import Meals from './pages/Meals.tsx'
+import Recap from './pages/Recap.tsx'
 import { useSession } from './lib/auth.ts'
 
 export default function App() {
@@ -22,11 +28,18 @@ export default function App() {
 
   return (
     <BrowserRouter>
-      <Routes>
-        <Route path="/" element={<Progress />} />
-        <Route path="/progress" element={<Progress />} />
-        <Route path="*" element={<Navigate to="/progress" replace />} />
-      </Routes>
+      <AppShell>
+        <Routes>
+          <Route path="/" element={<Today />} />
+          <Route path="/log" element={<Log />} />
+          <Route path="/train" element={<Train />} />
+          <Route path="/train/progress" element={<Progress />} />
+          <Route path="/progress" element={<Navigate to="/train/progress" replace />} />
+          <Route path="/meals" element={<Meals />} />
+          <Route path="/recap" element={<Recap />} />
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </AppShell>
     </BrowserRouter>
   )
 }

@@ -6,12 +6,17 @@
 @theme {
   --color-ground: #101615;
   --color-surface: #1a2321;
+  --color-surface-2: #2a3634;
   --color-line: #2c3836;
+  --color-line-2: #34413e;
   --color-ink: #f2f5f4;
   --color-muted: #9fb0ad;
+  --color-mint: #6fd69a;
+  --color-water: #8fd3e8;
   --color-plate-red: #e5483d;
   --color-plate-blue: #4a7be0;
   --color-plate-yellow: #f2be1a;
+  --color-plate-orange: #f29a3d;
   --color-plate-green: #2fae64;
 
   --font-display: "Barlow Condensed", "Arial Narrow", Impact, sans-serif;
@@ -31,5 +36,17 @@
     font-family: var(--font-sans);
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+  }
+  a {
+    color: #9fc0ff;
+  }
+  input[type="number"]::-webkit-outer-spin-button,
+  input[type="number"]::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+  input[type="number"] {
+    -moz-appearance: textfield;
+    appearance: textfield;
   }
 }
