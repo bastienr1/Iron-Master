@@ -47,7 +47,7 @@ export default function Login() {
 
       {step === 'email' ? (
         <>
-          <p className="font-sans text-muted mt-3">An email brings a 6-digit code and a link. Either one signs you in.</p>
+          <p className="font-sans text-muted mt-3">An email brings a code and a link. Either one signs you in.</p>
           <form onSubmit={submitEmail} className="mt-8 flex flex-col gap-3">
             <label className="font-sans text-sm text-muted" htmlFor="email">
               Email
@@ -86,7 +86,7 @@ export default function Login() {
       ) : (
         <>
           <p className="font-sans text-muted mt-3">
-            Sent to <span className="text-ink">{email}</span>. Type the 6-digit code, or tap the link in the email.
+            Sent to <span className="text-ink">{email}</span>. Type the code, or tap the link in the email.
           </p>
           <form onSubmit={submitCode} className="mt-8 flex flex-col gap-3">
             <label className="font-sans text-sm text-muted" htmlFor="code">
@@ -98,13 +98,13 @@ export default function Login() {
               inputMode="numeric"
               autoComplete="one-time-code"
               pattern="[0-9]*"
-              maxLength={6}
+              maxLength={10}
               required
               autoFocus
               value={code}
-              onChange={e => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
-              className="min-h-12 rounded-md border border-line bg-surface px-4 font-mono text-2xl tracking-[0.4em] text-ink outline-none focus:border-plate-green"
-              placeholder="123456"
+              onChange={e => setCode(e.target.value.replace(/\D/g, '').slice(0, 10))}
+              className="min-h-12 rounded-md border border-line bg-surface px-4 font-mono text-2xl tracking-[0.25em] text-ink outline-none focus:border-plate-green"
+              placeholder="your code"
             />
             <button
               type="submit"
