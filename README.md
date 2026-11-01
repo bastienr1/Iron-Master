@@ -19,8 +19,20 @@ nothing from React, Supabase, Node or the DOM and are tested with `node --test`.
    browser (anon key only). The service-role key, `IMPORT_USER_ID` and
    `VAULT_ROOT` are read only by the import script.
 2. Run `supabase/migrations/0001_init.sql` in the Supabase SQL editor.
-3. Create your user (Authentication → Users → invite) and put its UUID in
-   `IMPORT_USER_ID`. Sign-in is magic link only; the app never creates users.
+3. Put your email in `IMPORT_USER_EMAIL`; the import script creates the user if
+   it does not exist. The app itself never creates users.
+4. Paste `supabase/templates/magic-link.html` into Authentication → Email
+   Templates → Magic Link, and set the Auth Site URL to the deployed URL.
+
+## Sign-in
+
+The email carries a numeric code and a link to `/auth/confirm`. Either signs
+you in. A plain Supabase magic link does not survive Gmail's link scanner or a
+WhatsApp preview, which fetch the URL and consume its one-time token; the
+confirm page redeems the token only when it runs in a real browser.
+Supabase's built-in mailer allows two emails per hour. When that bites, or for
+testing on this PC, `npx tsx scripts/dev-signin-link.ts <site url>` prints a
+fresh code and link without sending anything (service-role key, local only).
 
 ## Scripts
 
