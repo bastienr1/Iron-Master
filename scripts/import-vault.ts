@@ -49,7 +49,14 @@ const VAULT_ROOT = need('VAULT_ROOT')
 const SCHEMA = process.env.SUPABASE_SCHEMA || 'public'
 const SUPABASE_URL = DRY_RUN ? '' : need('SUPABASE_URL', 'VITE_SUPABASE_URL')
 const SERVICE_KEY = DRY_RUN ? '' : need('SUPABASE_SERVICE_ROLE_KEY')
-const USER_ID = DRY_RUN ? 'dry-run' : need('IMPORT_USER_ID')
+// Either IMPORT_USER_ID (a UUID) or IMPORT_USER_EMAIL (looked up, created if missing).
+const USER_ID_ENV = process.env.IMPORT_USER_ID?.trim() || ''
+const USER_EMAIL = process.env.IMPORT_USER_EMAIL?.trim() || ''
+if (!DRY_RUN && !USER_ID_ENV && !USER_EMAIL) {
+  console.error('Set IMPORT_USER_ID or IMPORT_USER_EMAIL in .env.local')
+  process.exit(2)
+}
+let USER_ID = DRY_RUN ? 'dry-run' : USER_ID_ENV
 
 const supabase = DRY_RUN
   ? null
@@ -61,6 +68,25 @@ const supabase = DRY_RUN
 function db() {
   if (!supabase) throw new Error('no Supabase client in dry run')
   return supabase
+}
+
+/** Resolve IMPORT_USER_EMAIL to a user id, inviting the address if it has no account yet. */
+async function resolveUser(): Promise<string> {
+  if (USER_ID) return USER_ID
+  const admin = db().auth.admin
+  let page = 1
+  for (;;) {
+    const { data, error } = await admin.listUsers({ page, perPage: 200 })
+    if (error) throw new Error(`auth: ${error.message}`)
+    const hit = data.users.find(u => u.email?.toLowerCase() === USER_EMAIL.toLowerCase())
+    if (hit) return hit.id
+    if (data.users.length < 200) break
+    page++
+  }
+  const { data, error } = await admin.createUser({ email: USER_EMAIL, email_confirm: true })
+  if (error || !data.user) throw new Error(`auth: could not create ${USER_EMAIL}: ${error?.message ?? 'unknown'}`)
+  console.log(`Created user ${USER_EMAIL} (${data.user.id}); sign in with a magic link to that address.`)
+  return data.user.id
 }
 
 // ---------------------------------------------------------------------------
@@ -155,6 +181,10 @@ async function main() {
   console.log(`Iron Master · vault import${DRY_RUN ? ' (dry run)' : ''}`)
   console.log(`  vault:  ${VAULT_ROOT}`)
   console.log(`  schema: ${SCHEMA}`)
+  if (!DRY_RUN) {
+    USER_ID = await resolveUser()
+    console.log(`  user:   ${USER_ID}`)
+  }
   console.log('')
   console.log(`Parsed ${totals.sessions} sessions, ${totals.exercises} exercises, ${totals.sets} sets, ${totals.reps} reps`)
   console.log(`Engine: ${verdicts.push} push · ${verdicts.stay} stay · ${verdicts.progress_bw} bodyweight progression`)
