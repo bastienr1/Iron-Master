@@ -114,9 +114,15 @@ const allSessionNotes = readNotes(join(VAULT_ROOT, 'Health', 'Physique-Log')).fi
 )
 // Walks and other non-lifting sessions (day: Walk) have no program slot and no
 // place in `sessions`, whose day is one of the four lifting days. Skip and report them.
+// Pre-logged notes (status: planned) have proposed loads but no reps yet; they
+// are imported once the session is done.
 const isLiftingDay = (md: string) => parseDay(parseFrontmatter(md).day) !== null
-const sessionNotes = allSessionNotes.filter(n => isLiftingDay(n.md))
-const skippedSessions = allSessionNotes.filter(n => !isLiftingDay(n.md)).map(n => `${n.rel} (day: ${parseFrontmatter(n.md).day ?? ''})`)
+const isPlanned = (md: string) => parseFrontmatter(md).status === 'planned'
+const importable = (md: string) => isLiftingDay(md) && !isPlanned(md)
+const sessionNotes = allSessionNotes.filter(n => importable(n.md))
+const skippedSessions = allSessionNotes
+  .filter(n => !importable(n.md))
+  .map(n => `${n.rel} (${isPlanned(n.md) ? 'status: planned' : `day: ${parseFrontmatter(n.md).day ?? ''}`})`)
 const nutritionNotes = readNotes(join(VAULT_ROOT, 'Health', 'Nutrition-Log')).filter(
   n => parseFrontmatter(n.md).type === 'nutrition-day' && notExported(n.md),
 )
@@ -218,7 +224,7 @@ async function main() {
   console.log('')
   console.log(`Parsed ${totals.sessions} sessions, ${totals.exercises} exercises, ${totals.sets} sets, ${totals.reps} reps`)
   if (skippedSessions.length) {
-    console.log(`Skipped ${skippedSessions.length} non-lifting session${skippedSessions.length === 1 ? '' : 's'}:`)
+    console.log(`Skipped ${skippedSessions.length} session${skippedSessions.length === 1 ? '' : 's'} (planned or non-lifting):`)
     for (const s of skippedSessions) console.log(`  ${s}`)
   }
   console.log(`Engine: ${verdicts.push} push · ${verdicts.stay} stay · ${verdicts.progress_bw} bodyweight progression`)
