@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import TalkBar from '../components/TalkBar.tsx'
 import { Bar, Card, Empty, ErrorNote, Eyebrow, SectionTitle, Title } from '../components/ui.tsx'
 import { dayTotals, fetchActivities, fetchDay, fetchSessions, lastDoneDay, type ActivityRow, type SessionRow } from '../lib/data.ts'
-import { shortDate, timeHm, todayIso } from '../lib/dates.ts'
+import { hourNow, shortDate, timeHm, todayIso } from '../lib/dates.ts'
 import { formatKcal, periodOf, remaining, restOfDayPlan } from '../lib/fuel.ts'
 import { activityText } from '../lib/logCards.ts'
 import { DAY_LABEL } from '../lib/program.ts'
@@ -37,7 +37,7 @@ export default function Today() {
   const upcoming = nextDay(lastDoneDay(sessions))
   const totals = dayTotals(day)
   const rem = remaining(totals)
-  const plan = restOfDayPlan(totals, periodOf(new Date().getHours()))
+  const plan = restOfDayPlan(totals, periodOf(hourNow()))
   const lastMeal = day?.meals.length ? day.meals[day.meals.length - 1] : null
   const moved = movementSummary(data?.activities ?? [])
 

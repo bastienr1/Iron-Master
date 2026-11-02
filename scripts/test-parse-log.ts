@@ -9,6 +9,7 @@ import { readFileSync, existsSync } from 'node:fs'
 import { resolve } from 'node:path'
 import process from 'node:process'
 import { createClient } from '@supabase/supabase-js'
+import { timeHm, todayIso } from '../src/lib/dates.ts'
 import { EXERCISES } from '../src/lib/exercises.ts'
 import { MEAL_LIBRARY } from '../supabase/seed/meals.ts'
 import { validateParseResponse } from '../src/lib/logCards.ts'
@@ -48,8 +49,8 @@ if (otpErr || !sess.session) {
 }
 
 const context = {
-  date: new Date().toISOString().slice(0, 10),
-  time: new Date().toTimeString().slice(0, 5),
+  date: todayIso(),
+  time: timeHm(),
   exercises: Object.entries(EXERCISES).map(([key, e]) => ({ key, name: e.name, loading: e.loading, aliases: e.aliases })),
   meal_library: MEAL_LIBRARY.map(m => ({ name: m.name, portion: m.portion, kcal: m.kcal, protein_g: m.protein_g, fiber_g: m.fiber_g, accuracy: m.accuracy })),
   today: null,

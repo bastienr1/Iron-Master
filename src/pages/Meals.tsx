@@ -4,7 +4,7 @@
 import { useMemo, useState } from 'react'
 import { AccuracyDot, AccuracyLegend, Card, ErrorNote, Eyebrow, Title } from '../components/ui.tsx'
 import { addMeal, bumpLibrary, dayTotals, fetchDay, fetchLibrary, type LibraryRow } from '../lib/data.ts'
-import { todayIso } from '../lib/dates.ts'
+import { hourNow, todayIso } from '../lib/dates.ts'
 import { remaining } from '../lib/fuel.ts'
 import type { MealItem } from '../lib/logCards.ts'
 import { FIBER_FIXERS } from '../lib/targets.ts'
@@ -79,11 +79,11 @@ export default function Meals() {
 
   function fixer(name: string) {
     const row = library.find(r => r.name === name)
-    if (row) return void logRow(row, new Date().getHours() >= 19 ? 'Evening' : 'Snack')
+    if (row) return void logRow(row, hourNow() >= 19 ? 'Evening' : 'Snack')
     const f = FIBER_FIXERS.find(x => x.name === name)
     if (!f) return
     setBusy(true)
-    addMeal(date, { slot: new Date().getHours() >= 19 ? 'Evening' : 'Snack', name: f.name, items: [{ name: f.name, grams: f.grams, kcal: f.kcal, protein_g: f.protein_g, fiber_g: f.fiber_g, accuracy: 'estimated' }], raw_text: null })
+    addMeal(date, { slot: hourNow() >= 19 ? 'Evening' : 'Snack', name: f.name, items: [{ name: f.name, grams: f.grams, kcal: f.kcal, protein_g: f.protein_g, fiber_g: f.fiber_g, accuracy: 'estimated' }], raw_text: null })
       .then(() => {
         setToast(`${f.name} logged · +${f.fiber_g} g fiber`)
         state.reload()
@@ -130,7 +130,7 @@ export default function Meals() {
               type="button"
               onClick={() => {
                 setOpen(isOpen ? null : row.id)
-                setSlot(defaultSlot(row, new Date().getHours()))
+                setSlot(defaultSlot(row, hourNow()))
               }}
               className="w-full grid grid-cols-[1fr_52px_48px_40px] gap-x-2 gap-y-0.5 items-baseline px-3 py-[11px] text-left tabular-nums"
             >
