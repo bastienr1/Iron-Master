@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import TalkBar from '../components/TalkBar.tsx'
-import { Bar, Card, Empty, ErrorNote, Eyebrow, SectionTitle, Title } from '../components/ui.tsx'
+import { Bar, Card, ClockTag, Empty, ErrorNote, Eyebrow, SectionTitle, Title } from '../components/ui.tsx'
 import { dayTotals, fetchActivities, fetchDay, fetchSessions, lastDoneDay, type ActivityRow, type SessionRow } from '../lib/data.ts'
 import { hourNow, shortDate, timeHm, todayIso } from '../lib/dates.ts'
 import { formatKcal, periodOf, remaining, restOfDayPlan } from '../lib/fuel.ts'
@@ -10,6 +10,7 @@ import { DAY_LABEL } from '../lib/program.ts'
 import { nextDay, slotsFor } from '../lib/sessionPlan.ts'
 import { programWeek, TARGETS } from '../lib/targets.ts'
 import { useAsync } from '../lib/useAsync.ts'
+import { useClockHm } from '../lib/useClockHm.ts'
 
 function sessionStats(s: SessionRow) {
   let reps = 0
@@ -22,6 +23,8 @@ function sessionStats(s: SessionRow) {
 }
 
 export default function Today() {
+  // Re-renders the page each minute, so the date and plan below roll over too.
+  const clock = useClockHm()
   const date = todayIso()
   const navigate = useNavigate()
   const [text, setText] = useState('')
@@ -48,7 +51,10 @@ export default function Today() {
           <Eyebrow>
             {shortDate(date)} · Lean bulk · Week {programWeek(date)}
           </Eyebrow>
-          <Title>Today</Title>
+          <div className="flex items-baseline gap-2.5">
+            <Title>Today</Title>
+            <ClockTag time={clock} />
+          </div>
         </div>
         <div className="flex gap-1 items-end" aria-hidden="true">
           <span className="w-[9px] h-[34px] rounded-[3px] bg-plate-red" />

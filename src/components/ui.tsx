@@ -11,6 +11,15 @@ export function Title({ children }: { children: ReactNode }) {
   return <h1 className="font-display font-extrabold text-[40px] leading-none uppercase">{children}</h1>
 }
 
+/** The app clock beside a page title: Singapore time, whatever the device says. */
+export function ClockTag({ time }: { time: string }) {
+  return (
+    <time className="font-mono text-sm text-muted tabular-nums whitespace-nowrap" aria-label={`${time} Singapore time`}>
+      {time} SGT
+    </time>
+  )
+}
+
 export function SectionTitle({ children }: { children: ReactNode }) {
   return <h2 className="font-display font-bold text-xl uppercase">{children}</h2>
 }
