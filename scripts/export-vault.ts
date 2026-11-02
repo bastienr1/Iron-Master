@@ -16,6 +16,7 @@ import process from 'node:process'
 import { createClient } from '@supabase/supabase-js'
 import { exerciseName } from '../src/lib/exercises.ts'
 import { DAY_LABEL, findSlot, type Day } from '../src/lib/program.ts'
+import { activityText, type ActivityKind } from '../src/lib/logCards.ts'
 
 function loadDotEnv(file: string) {
   if (!existsSync(file)) return
@@ -105,6 +106,20 @@ interface NDay {
   meals: Meal[]
 }
 
+interface Activity {
+  id: string
+  date: string
+  kind: ActivityKind
+  minutes: number | null
+  km: number | null
+  steps: number | null
+  note: string | null
+}
+
+function activityLines(acts: Activity[]): string {
+  return acts.map(a => `- ${activityText({ ...a, activity: a.kind, km: a.km === null ? null : Number(a.km) })}${a.note ? ` — ${a.note}` : ''}`).join('\n')
+}
+
 function repsCell(sets: Ex['sets']): string {
   return sets.map(s => (s.rest_pause ? `${s.reps} (rest-pause)` : String(s.reps))).join(', ')
 }
@@ -160,7 +175,7 @@ ${rows}
 `
 }
 
-function nutritionNote(d: NDay, trainingLabel: string | null): string {
+function nutritionNote(d: NDay, trainingLabel: string | null, acts: Activity[]): string {
   const rows = d.meals
     .sort((a, b) => a.position - b.position)
     .map(m => `| ${m.slot ?? ''} | ${m.raw_text ?? (m.items.map(i => (i.grams ? `${i.name} ${i.grams} g` : i.name)).join(', ') || m.name)} | ${m.kcal} | ${m.protein_g} |`)
@@ -188,7 +203,11 @@ Part of [[Physique-Program-Lean-Bulk]]. Targets: ~2,750 kcal · 150–165 g prot
 ${rows}
 | **Total** | | **~${kcal.toLocaleString('en-US')}** | **~${prot}** |
 
-## Notes
+${acts.length ? `## Activity
+
+${activityLines(acts)}
+
+` : ''}## Notes
 
 - Figures are estimates unless taken from a label. Accuracy per item is kept in the app.
 `
@@ -210,8 +229,17 @@ async function main() {
     .eq('user_id', uid)
     .is('source_path', null)
   if (dErr) throw new Error(dErr.message)
+  const { data: aData, error: aErr } = await supabase
+    .from('activities')
+    .select('id, date, kind, minutes, km, steps, note')
+    .eq('user_id', uid)
+    .eq('source', 'app')
+    .is('source_path', null)
+    .order('logged_at')
+  if (aErr) throw new Error(aErr.message)
   const sessions = (sData ?? []) as unknown as Session[]
   const days = (dData ?? []) as unknown as NDay[]
+  const activities = (aData ?? []) as unknown as Activity[]
 
   const physDir = join(vault!, 'Health', 'Physique-Log')
   const nutDir = join(vault!, 'Health', 'Nutrition-Log')
@@ -252,10 +280,12 @@ async function main() {
       continue
     }
     const trainedDay = sessions.find(s => s.date === d.date)
-    console.log(`${DRY_RUN ? 'would write' : 'write'}  ${rel}  (${d.meals.length} meals)`)
+    const acts = activities.filter(a => a.date === d.date)
+    console.log(`${DRY_RUN ? 'would write' : 'write'}  ${rel}  (${d.meals.length} meals${acts.length ? `, ${acts.length} activities` : ''})`)
     if (!DRY_RUN) {
-      writeFileSync(file, nutritionNote(d, trainedDay ? DAY_LABEL[trainedDay.day] : null), 'utf8')
+      writeFileSync(file, nutritionNote(d, trainedDay ? DAY_LABEL[trainedDay.day] : null, acts), 'utf8')
       await supabase.from('nutrition_days').update({ source_path: rel }).eq('id', d.id)
+      if (acts.length) await supabase.from('activities').update({ source_path: rel }).in('id', acts.map(a => a.id))
     }
     written++
   }

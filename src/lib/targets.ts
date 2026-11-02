@@ -10,6 +10,8 @@ export const TARGETS = {
   protein_max_g: 165,
   fiber_min_g: 30,
   water_ml: 3000,
+  /** Rest-day step floor from the weekly split ("Rest + 8–10k steps"). */
+  steps: 8000,
 } as const
 
 /** Program start, for the "Week N" eyebrow. */

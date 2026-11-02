@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { mealTotals, validateCard, validateParseResponse } from './logCards.ts'
+import { activityText, mealTotals, validateCard, validateParseResponse, type ActivityCard } from './logCards.ts'
 import { EXERCISES } from './exercises.ts'
 
 const keys = new Set(Object.keys(EXERCISES))
@@ -55,4 +55,20 @@ test('a response keeps valid cards and drops bad ones', () => {
   assert.equal(r.cards.length, 2)
   assert.equal(r.reply, 'Logged.')
   assert.deepEqual(validateParseResponse(null, keys), { cards: [], reply: '' })
+})
+
+test('an activity card needs at least one measure and prints cleanly', () => {
+  const walk = validateCard({ kind: 'activity', activity: 'walk', minutes: 60, km: 5, steps: null, note: null }, keys)
+  assert.deepEqual(walk, { kind: 'activity', activity: 'walk', minutes: 60, km: 5, steps: null, note: null })
+  assert.equal(activityText(walk as ActivityCard), 'Walk · 60 min · 5 km')
+
+  const steps = validateCard({ kind: 'activity', activity: 'steps', steps: 8400.4 }, keys) as ActivityCard
+  assert.equal(steps.steps, 8400)
+  assert.equal(activityText(steps), '8,400 steps')
+
+  assert.equal(validateCard({ kind: 'activity', activity: 'walk' }, keys), null)
+  assert.equal(validateCard({ kind: 'activity', activity: 'walk', minutes: 5000 }, keys), null)
+  const odd = validateCard({ kind: 'activity', activity: 'rowing', minutes: 20 }, keys) as ActivityCard
+  assert.equal(odd.activity, 'other')
+  assert.equal(activityText(odd), 'Activity · 20 min')
 })

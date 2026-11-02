@@ -7,6 +7,7 @@ import { useLocation } from 'react-router-dom'
 import TalkBar from '../components/TalkBar.tsx'
 import { AccuracyDot, AccuracyLegend, ErrorNote, Eyebrow, GhostButton, PrimaryButton, Title, VerdictChip } from '../components/ui.tsx'
 import {
+  addActivity,
   addMeal,
   addWater,
   buildParseContext,
@@ -30,7 +31,7 @@ import {
 import { todayIso } from '../lib/dates.ts'
 import { EXERCISES, exerciseName } from '../lib/exercises.ts'
 import { findSlot } from '../lib/program.ts'
-import { mealTotals, validateParseResponse, type LogCard, type MealCard, type ParseResponse, type SetCard } from '../lib/logCards.ts'
+import { activityText, mealTotals, validateParseResponse, type LogCard, type MealCard, type ParseResponse, type SetCard } from '../lib/logCards.ts'
 import { rangeText } from '../lib/sessionPlan.ts'
 import { useAsync } from '../lib/useAsync.ts'
 
@@ -158,6 +159,10 @@ export default function Log() {
           savedText = `Water: ${(total / 1000).toFixed(1)} L today`
           break
         }
+        case 'activity':
+          await addActivity(date, cs.card, entry.row.text)
+          savedText = 'Saved to today'
+          break
         case 'note':
           savedText = 'Kept'
           break
@@ -257,6 +262,7 @@ function CardView({ state, sessions, onSave, onDiscard, onEdit }: { state: CardS
       <span className="font-display font-bold text-lg uppercase">
         {card.kind === 'weigh_in' && `Weigh-in · ${card.kg} kg`}
         {card.kind === 'water' && `Water · ${card.ml} ml`}
+        {card.kind === 'activity' && activityText(card)}
         {card.kind === 'note' && 'Note'}
       </span>
       {card.kind === 'note' && <p className="text-sm">{card.text}</p>}

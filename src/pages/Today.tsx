@@ -2,9 +2,10 @@ import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import TalkBar from '../components/TalkBar.tsx'
 import { Bar, Card, Empty, ErrorNote, Eyebrow, SectionTitle, Title } from '../components/ui.tsx'
-import { dayTotals, fetchDay, fetchSessions, lastDoneDay, type SessionRow } from '../lib/data.ts'
+import { dayTotals, fetchActivities, fetchDay, fetchSessions, lastDoneDay, type ActivityRow, type SessionRow } from '../lib/data.ts'
 import { shortDate, timeHm, todayIso } from '../lib/dates.ts'
 import { formatKcal, periodOf, remaining, restOfDayPlan } from '../lib/fuel.ts'
+import { activityText } from '../lib/logCards.ts'
 import { DAY_LABEL } from '../lib/program.ts'
 import { nextDay, slotsFor } from '../lib/sessionPlan.ts'
 import { programWeek, TARGETS } from '../lib/targets.ts'
@@ -25,8 +26,8 @@ export default function Today() {
   const navigate = useNavigate()
   const [text, setText] = useState('')
   const { data, error, loading } = useAsync(async () => {
-    const [sessions, day] = await Promise.all([fetchSessions(), fetchDay(date)])
-    return { sessions, day }
+    const [sessions, day, activities] = await Promise.all([fetchSessions(), fetchDay(date), fetchActivities(date)])
+    return { sessions, day, activities }
   }, [date])
 
   const sessions = data?.sessions ?? []
@@ -38,6 +39,7 @@ export default function Today() {
   const rem = remaining(totals)
   const plan = restOfDayPlan(totals, periodOf(new Date().getHours()))
   const lastMeal = day?.meals.length ? day.meals[day.meals.length - 1] : null
+  const moved = movementSummary(data?.activities ?? [])
 
   return (
     <main className="flex-1 flex flex-col gap-3.5 px-5 pt-7 pb-3">
@@ -118,6 +120,11 @@ export default function Today() {
         <Row label="Water" value={`~${(totals.water_ml / 1000).toFixed(1)} / ${TARGETS.water_ml / 1000} L`}>
           <Bar value={totals.water_ml} max={TARGETS.water_ml} color="#8fd3e8" />
         </Row>
+        {moved && (
+          <Row label="Moved" value={moved.text} tone="text-mint">
+            {moved.steps !== null ? <Bar value={moved.steps} max={TARGETS.steps} color="#2fae64" /> : null}
+          </Row>
+        )}
       </Card>
 
       <Card tone="outline" className="flex flex-col gap-2.5">
@@ -160,6 +167,16 @@ export default function Today() {
       </div>
     </main>
   )
+}
+
+/** One line for today's walks and steps: bouts joined, steps summed. */
+function movementSummary(activities: ActivityRow[]): { text: string; steps: number | null } | null {
+  if (activities.length === 0) return null
+  const steps = activities.reduce((n, a) => n + (a.steps ?? 0), 0)
+  const bouts = activities.filter(a => a.kind !== 'steps' || a.minutes !== null || a.km !== null).map(a => activityText({ ...a, activity: a.kind, steps: null }))
+  const parts = bouts.filter(Boolean)
+  if (steps > 0) parts.push(`${steps.toLocaleString('en-US')} steps`)
+  return { text: parts.join(' + '), steps: steps > 0 ? steps : null }
 }
 
 function Row({ label, value, tone = '', children }: { label: string; value: string; tone?: string; children: React.ReactNode }) {

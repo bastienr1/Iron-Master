@@ -24,7 +24,7 @@ function json(body: unknown, status = 200): Response {
 const Accuracy = z.enum(['label', 'weighed', 'estimated'])
 
 const Card = z.object({
-  kind: z.enum(['set', 'meal', 'weigh_in', 'water', 'note']),
+  kind: z.enum(['set', 'meal', 'weigh_in', 'water', 'activity', 'note']),
   // set
   exercise_key: z.string().nullable(),
   raw_name: z.string().nullable(),
@@ -49,6 +49,11 @@ const Card = z.object({
     )
     .nullable(),
   library_match: z.string().nullable(),
+  // activity
+  activity: z.enum(['walk', 'run', 'cycle', 'swim', 'steps', 'other']).nullable(),
+  minutes: z.number().nullable(),
+  km: z.number().nullable(),
+  steps: z.number().nullable(),
   // weigh_in / water / note
   kg: z.number().nullable(),
   ml: z.number().nullable(),
@@ -89,9 +94,10 @@ CARDS
 - meal: food eaten. One card per meal. Split into items with kcal and protein per item. accuracy per item: "label" when values come from a product label the user names (whey, milk, bars, yogurt, 100PLUS), "weighed" when a gram amount is stated, "estimated" otherwise. If the sentence names a meal from MEAL LIBRARY ("the usual breakfast", "Hao Liao bowl", "post-workout shake"), copy its values exactly, set library_match to its name, and keep its items as one item unless the user changes a portion. slot: Breakfast, Lunch, Dinner, Shake, Snack, Evening, Supplements or Workout.
 - weigh_in: morning body weight in kg.
 - water: drinking water or workout drinks in ml (a bottle ≈ 500 ml, a can of 100PLUS 325 ml, a glass 250 ml).
+- activity: a walk, run, cycle, swim or a step count ("1 hour walking of 5 km" → activity walk, minutes 60, km 5; "8,400 steps today" → activity steps, steps 8400). Convert hours to minutes and miles to km. Leave unknown fields null; never estimate a distance from a duration.
 - note: anything worth keeping that is not one of the above (how a set felt, a headache, a plan), or an explanation when nothing could be parsed.
 
-Fields that do not apply to a card's kind are null. One sentence can produce several cards (a shake and a weigh-in). reply: one short plain sentence back to the user, e.g. "Logged lunch, 800 kcal and 64 g protein; fiber is still 20 g short." Never give medical advice.
+Fields that do not apply to a card's kind are null. One sentence can produce several cards (a shake and a weigh-in). A strength exercise is a set card, never an activity. reply: one short plain sentence back to the user, e.g. "Logged lunch, 800 kcal and 64 g protein; fiber is still 20 g short." Never give medical advice.
 
 EXERCISE REGISTRY
 ${exercises || '(none provided)'}

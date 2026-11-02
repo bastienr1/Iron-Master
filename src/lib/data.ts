@@ -8,7 +8,7 @@ import { findSlot, PROGRAM_SLOTS, type Day } from './program.ts'
 import { decide, type Verdict } from './progression.ts'
 import type { LoggedExerciseRecord } from './progressRows.ts'
 import { nextDay } from './sessionPlan.ts'
-import { mealTotals, validateParseResponse, type MealCard, type MealItem, type ParseResponse, type SetCard, type Accuracy } from './logCards.ts'
+import { mealTotals, validateParseResponse, type MealCard, type MealItem, type ParseResponse, type SetCard, type Accuracy, type ActivityCard, type ActivityKind } from './logCards.ts'
 import { sumMeals, type DayTotals } from './fuel.ts'
 import { todayIso, timeHm } from './dates.ts'
 
@@ -103,6 +103,17 @@ export interface WeighInRow {
   id: string
   date: string
   kg: number
+}
+
+export interface ActivityRow {
+  id: string
+  date: string
+  kind: ActivityKind
+  minutes: number | null
+  km: number | null
+  steps: number | null
+  note: string | null
+  logged_at: string
 }
 
 export interface LogEntryRow {
@@ -401,6 +412,27 @@ export async function fetchWeighIns(): Promise<WeighInRow[]> {
 export async function upsertWeighIn(date: string, kg: number): Promise<void> {
   const { error } = await supabase.from('weigh_ins').upsert({ date, kg }, { onConflict: 'user_id,date' })
   if (error) fail('weigh_ins', error)
+}
+
+// ---------------------------------------------------------------------------
+// Activities (walks, runs, steps)
+
+export async function fetchActivities(date?: string): Promise<ActivityRow[]> {
+  let q = supabase.from('activities').select('id, date, kind, minutes, km, steps, note, logged_at').order('logged_at')
+  if (date) q = q.eq('date', date)
+  const { data, error } = await q
+  if (error) fail('activities', error)
+  return ((data ?? []) as ActivityRow[]).map(a => ({ ...a, km: a.km === null ? null : Number(a.km) }))
+}
+
+export async function addActivity(date: string, card: ActivityCard, rawText: string | null = null): Promise<ActivityRow> {
+  const { data, error } = await supabase
+    .from('activities')
+    .insert({ date, kind: card.activity, minutes: card.minutes, km: card.km, steps: card.steps, note: card.note, raw_text: rawText })
+    .select('id, date, kind, minutes, km, steps, note, logged_at')
+    .single()
+  if (error) fail('activities', error)
+  return data as ActivityRow
 }
 
 // ---------------------------------------------------------------------------

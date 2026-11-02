@@ -48,12 +48,24 @@ export interface WaterCard {
   note: string | null
 }
 
+export type ActivityKind = 'walk' | 'run' | 'cycle' | 'swim' | 'steps' | 'other'
+
+/** A walk, run or step count. The program wants walks and 8–10k steps on rest days. */
+export interface ActivityCard {
+  kind: 'activity'
+  activity: ActivityKind
+  minutes: number | null
+  km: number | null
+  steps: number | null
+  note: string | null
+}
+
 export interface NoteCard {
   kind: 'note'
   text: string
 }
 
-export type LogCard = SetCard | MealCard | WeighInCard | WaterCard | NoteCard
+export type LogCard = SetCard | MealCard | WeighInCard | WaterCard | ActivityCard | NoteCard
 
 export interface ParseResponse {
   cards: LogCard[]
@@ -74,6 +86,7 @@ function strOrNull(x: unknown): string | null {
 }
 
 const ACC: Accuracy[] = ['label', 'weighed', 'estimated']
+const ACTIVITY_KINDS: ActivityKind[] = ['walk', 'run', 'cycle', 'swim', 'steps', 'other']
 
 export function validateCard(raw: unknown, knownExerciseKeys: ReadonlySet<string>): LogCard | null {
   if (!raw || typeof raw !== 'object') return null
@@ -131,6 +144,14 @@ export function validateCard(raw: unknown, knownExerciseKeys: ReadonlySet<string
       if (!isNum(o.ml) || o.ml <= 0 || o.ml > 5000) return null
       return { kind: 'water', ml: Math.round(o.ml), note: strOrNull(o.note) }
     }
+    case 'activity': {
+      const activity = ACTIVITY_KINDS.includes(o.activity as ActivityKind) ? (o.activity as ActivityKind) : 'other'
+      const minutes = isNum(o.minutes) && o.minutes > 0 && o.minutes <= 1440 ? Math.round(o.minutes) : null
+      const km = isNum(o.km) && o.km > 0 && o.km <= 200 ? Math.round(o.km * 10) / 10 : null
+      const steps = isNum(o.steps) && o.steps > 0 && o.steps <= 100000 ? Math.round(o.steps) : null
+      if (minutes === null && km === null && steps === null) return null
+      return { kind: 'activity', activity, minutes, km, steps, note: strOrNull(o.note) }
+    }
     case 'note': {
       const text = strOrNull(o.text)
       return text ? { kind: 'note', text } : null
@@ -176,4 +197,23 @@ export const ACCURACY_LABEL: Record<Accuracy, string> = {
   label: 'from a label',
   weighed: 'weighed, values estimated',
   estimated: 'estimated',
+}
+
+export const ACTIVITY_LABEL: Record<ActivityKind, string> = {
+  walk: 'Walk',
+  run: 'Run',
+  cycle: 'Cycle',
+  swim: 'Swim',
+  steps: 'Steps',
+  other: 'Activity',
+}
+
+/** "Walk · 60 min · 5 km", "6,200 steps". Shared by Log, Today and the vault export. */
+export function activityText(a: Pick<ActivityCard, 'activity' | 'minutes' | 'km' | 'steps'>): string {
+  const parts: string[] = []
+  if (a.activity !== 'steps') parts.push(ACTIVITY_LABEL[a.activity])
+  if (a.minutes !== null) parts.push(`${a.minutes} min`)
+  if (a.km !== null) parts.push(`${a.km} km`)
+  if (a.steps !== null) parts.push(`${a.steps.toLocaleString('en-US')} steps`)
+  return parts.join(' · ')
 }
