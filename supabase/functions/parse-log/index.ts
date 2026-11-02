@@ -23,43 +23,54 @@ function json(body: unknown, status = 200): Response {
 
 const Accuracy = z.enum(['label', 'weighed', 'estimated'])
 
-const Card = z.object({
-  kind: z.enum(['set', 'meal', 'weigh_in', 'water', 'activity', 'note']),
-  // set
-  exercise_key: z.string().nullable(),
-  raw_name: z.string().nullable(),
+// Structured outputs allow at most 16 nullable or union fields per schema, so
+// each kind is its own object (a discriminated union, 9 unions in total) and
+// `note` is "" rather than null when there is nothing to add.
+const Note = z.string()
+
+const SetCard = z.object({
+  kind: z.literal('set'),
+  exercise_key: z.string(),
+  raw_name: z.string(),
   load_kg: z.number().nullable(),
-  implements: z.number().nullable(),
-  sets: z
-    .array(z.object({ reps: z.number(), load_kg: z.number().nullable(), rest_pause: z.boolean() }))
-    .nullable(),
-  // meal
-  name: z.string().nullable(),
+  implements: z.number(),
+  sets: z.array(z.object({ reps: z.number(), rest_pause: z.boolean() })),
+  note: Note,
+})
+
+const MealCard = z.object({
+  kind: z.literal('meal'),
+  name: z.string(),
   slot: z.string().nullable(),
-  items: z
-    .array(
-      z.object({
-        name: z.string(),
-        grams: z.number().nullable(),
-        kcal: z.number(),
-        protein_g: z.number(),
-        fiber_g: z.number().nullable(),
-        accuracy: Accuracy,
-      }),
-    )
-    .nullable(),
+  items: z.array(
+    z.object({
+      name: z.string(),
+      grams: z.number().nullable(),
+      kcal: z.number(),
+      protein_g: z.number(),
+      fiber_g: z.number().nullable(),
+      accuracy: Accuracy,
+    }),
+  ),
   library_match: z.string().nullable(),
-  // activity
-  activity: z.enum(['walk', 'run', 'cycle', 'swim', 'steps', 'other']).nullable(),
+  note: Note,
+})
+
+const WeighInCard = z.object({ kind: z.literal('weigh_in'), kg: z.number(), note: Note })
+const WaterCard = z.object({ kind: z.literal('water'), ml: z.number(), note: Note })
+
+const ActivityCard = z.object({
+  kind: z.literal('activity'),
+  activity: z.enum(['walk', 'run', 'cycle', 'swim', 'steps', 'other']),
   minutes: z.number().nullable(),
   km: z.number().nullable(),
   steps: z.number().nullable(),
-  // weigh_in / water / note
-  kg: z.number().nullable(),
-  ml: z.number().nullable(),
-  text: z.string().nullable(),
-  note: z.string().nullable(),
+  note: Note,
 })
+
+const NoteCard = z.object({ kind: z.literal('note'), text: z.string() })
+
+const Card = z.discriminatedUnion('kind', [SetCard, MealCard, WeighInCard, WaterCard, ActivityCard, NoteCard])
 
 const ParseResult = z.object({
   cards: z.array(Card),
@@ -97,7 +108,7 @@ CARDS
 - activity: a walk, run, cycle, swim or a step count ("1 hour walking of 5 km" → activity walk, minutes 60, km 5; "8,400 steps today" → activity steps, steps 8400). Convert hours to minutes and miles to km. Leave unknown fields null; never estimate a distance from a duration.
 - note: anything worth keeping that is not one of the above (how a set felt, a headache, a plan), or an explanation when nothing could be parsed.
 
-Fields that do not apply to a card's kind are null. One sentence can produce several cards (a shake and a weigh-in). A strength exercise is a set card, never an activity. reply: one short plain sentence back to the user, e.g. "Logged lunch, 800 kcal and 64 g protein; fiber is still 20 g short." Never give medical advice.
+Each card carries only its kind's fields; note is "" when there is nothing to add; implements is 1 unless the sentence says two dumbbells. One sentence can produce several cards (a shake and a weigh-in). A strength exercise is a set card, never an activity. reply: one short plain sentence back to the user, e.g. "Logged lunch, 800 kcal and 64 g protein; fiber is still 20 g short." Never give medical advice.
 
 EXERCISE REGISTRY
 ${exercises || '(none provided)'}
