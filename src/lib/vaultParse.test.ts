@@ -4,7 +4,7 @@
  */
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { parseAim, parseLoadCell, parseRepsCell, parseRangeCell, sessionTotals } from './vaultParse.ts'
+import { parseAim, parseLoadCell, parseMealTable, parseRepsCell, parseRangeCell, sessionTotals } from './vaultParse.ts'
 import { resolveExercise } from './exercises.ts'
 import { bySession, exercise, loadFixtureNutrition, loadFixtureSessions } from './fixtures.test-helper.ts'
 
@@ -188,4 +188,29 @@ test('meal tables: one meal per eaten row, continuation rows fold into the previ
   assert.equal(thai.name, 'Time For Thai, shared')
   assert.equal(by('2026-10-28').meals[0].name, '2 grilled white bread')
   assert.equal(by('2026-10-29').meals[0].name, 'Usual breakfast')
+})
+
+test('meal rows marked (app) and their continuation rows are skipped', () => {
+  const md = `---
+type: nutrition-day
+date: 2026-11-02
+status: in-progress
+---
+
+| Meal | Food | kcal | Protein (g) |
+|---|---|---|---|
+| Breakfast ✅ | Usual breakfast | 709 | 56 |
+| Lunch ✅ (app) | Hao Liao bowl | 799 | 88 |
+| | Side salad | 20 | 1 |
+| Dinner ✅ | 3 spring rolls | 320 | 6 |
+| | Pork chop, rice, beans | 650 | 38 |
+| **Running total** | After dinner | **~1,700** | **~100** |
+`
+  const { meals, unread } = parseMealTable(md, 'x.md')
+  assert.deepEqual(unread, [])
+  assert.deepEqual(meals.map(m => [m.slot, m.kcal, m.protein_g]), [
+    ['Breakfast', 709, 56],
+    ['Dinner', 970, 44],
+  ])
+  assert.equal(meals[1].position, 2)
 })

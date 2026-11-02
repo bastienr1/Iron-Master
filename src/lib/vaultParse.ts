@@ -392,6 +392,8 @@ function shortName(food: string): string {
 }
 
 const ZERO_KEEP = /supplement|creatine|omega|vitamin/i
+/** A meal cell like "Lunch ✅ (app)" means the meal already lives in the app's own rows. */
+const APP_LOGGED = /\(app\)/i
 
 export function parseMealTable(markdown: string, path: string): { meals: ParsedMeal[]; unread: string[] } {
   const meals: ParsedMeal[] = []
@@ -407,10 +409,13 @@ export function parseMealTable(markdown: string, path: string): { meals: ParsedM
     return { meals, unread }
   }
   let position = 0
+  let skippingApp = false // a meal marked "(app)" was logged in the app already; skip it and its continuation rows
   for (const row of table.rows) {
     const mealCell = (row.cells[cMeal] ?? '').trim()
     const food = (row.cells[cFood] ?? '').trim()
     if (/^\*\*/.test(mealCell)) continue // Total / Running total
+    if (mealCell) skippingApp = APP_LOGGED.test(mealCell)
+    if (skippingApp) continue
     const kcal = cleanNumber(row.cells[cKcal] ?? '')
     const protein = cleanNumber(row.cells[cProt] ?? '')
     if (!mealCell && !food) continue
