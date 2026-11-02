@@ -209,7 +209,14 @@ export default function Log() {
           <div key={entry.row.id} className="flex flex-col gap-3">
             <div className="self-end max-w-[80%] bg-surface-2 rounded-[18px_18px_4px_18px] px-3.5 py-2.5 text-sm leading-[1.4]">{entry.row.text}</div>
             {entry.busy && <div className="self-start text-muted text-sm px-1 animate-pulse">Claude is reading that…</div>}
-            {entry.error && <ErrorNote>{entry.error}</ErrorNote>}
+            {entry.error && (
+              <div className="flex flex-col gap-2 items-start">
+                <ErrorNote>{entry.error}</ErrorNote>
+                <GhostButton onClick={() => void send(entry.row.text)} disabled={sending || base.loading}>
+                  Try again
+                </GhostButton>
+              </div>
+            )}
             {entry.cards.map((cs, i) => (
               <CardView
                 key={i}
