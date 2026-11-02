@@ -12,6 +12,8 @@ export const TARGETS = {
   water_ml: 3000,
   /** Rest-day step floor from the weekly split ("Rest + 8–10k steps"). */
   steps: 8000,
+  /** A full movement bar without a step count: an hour's walk ("Rest + walk"). */
+  walk_min: 60,
 } as const
 
 /** Program start, for the "Week N" eyebrow. */

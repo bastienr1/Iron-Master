@@ -122,7 +122,11 @@ export default function Today() {
         </Row>
         {moved && (
           <Row label="Moved" value={moved.text} tone="text-mint">
-            {moved.steps !== null ? <Bar value={moved.steps} max={TARGETS.steps} color="#2fae64" /> : null}
+            {moved.steps !== null ? (
+              <Bar value={moved.steps} max={TARGETS.steps} color="#2fae64" />
+            ) : (
+              <Bar value={moved.minutes} max={TARGETS.walk_min} color="#2fae64" />
+            )}
           </Row>
         )}
       </Card>
@@ -170,13 +174,14 @@ export default function Today() {
 }
 
 /** One line for today's walks and steps: bouts joined, steps summed. */
-function movementSummary(activities: ActivityRow[]): { text: string; steps: number | null } | null {
+function movementSummary(activities: ActivityRow[]): { text: string; steps: number | null; minutes: number } | null {
   if (activities.length === 0) return null
   const steps = activities.reduce((n, a) => n + (a.steps ?? 0), 0)
+  const minutes = activities.reduce((n, a) => n + (a.minutes ?? 0), 0)
   const bouts = activities.filter(a => a.kind !== 'steps' || a.minutes !== null || a.km !== null).map(a => activityText({ ...a, activity: a.kind, steps: null }))
   const parts = bouts.filter(Boolean)
   if (steps > 0) parts.push(`${steps.toLocaleString('en-US')} steps`)
-  return { text: parts.join(' + '), steps: steps > 0 ? steps : null }
+  return { text: parts.join(' + '), steps: steps > 0 ? steps : null, minutes }
 }
 
 function Row({ label, value, tone = '', children }: { label: string; value: string; tone?: string; children: React.ReactNode }) {
