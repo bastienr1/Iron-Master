@@ -309,17 +309,17 @@ async function main() {
     'nutrition_days',
     r => String(r.date),
     existingDays,
-    nutritionDays.map(d => ({
-      user_id: USER_ID,
-      date: d.date,
-      training: d.training,
-      kcal: d.kcal,
-      protein_g: d.protein_g,
-      fiber_g: d.fiber_g,
-      sleep_h: d.sleep_h,
-      status: d.status,
-      source_path: d.path,
-    })),
+    nutritionDays.map(d => {
+      const row: Row = { user_id: USER_ID, date: d.date, training: d.training, status: d.status, source_path: d.path }
+      // Totals are written only when the note has them. While a day is in
+      // progress the app computes kcal / protein / fiber from its meals, and a
+      // blank frontmatter must not null those out.
+      if (d.kcal !== null) row.kcal = d.kcal
+      if (d.protein_g !== null) row.protein_g = d.protein_g
+      if (d.fiber_g !== null) row.fiber_g = d.fiber_g
+      if (d.sleep_h !== null) row.sleep_h = d.sleep_h
+      return row
+    }),
     'user_id,date',
   )
 
@@ -332,14 +332,22 @@ async function main() {
     dayIds.length && !DRY_RUN
       ? await rowsOf('meals', db().from('meals').select('*').in('nutrition_day_id', dayIds))
       : []
+  // Vault meals are matched, in order, to the day's existing vault rows and keep
+  // those positions. Rows the app wrote (source 'app') are never touched, and a
+  // new vault meal goes after the highest position in use, whatever its source,
+  // so an import can no longer overwrite a meal logged in the app moments before.
+  const vaultMeals = existingMeals.filter(r => r.source === 'vault')
   const incomingMeals: Row[] = []
   for (const d of nutritionDays) {
     const id = dayId.get(d.date)
     if (!id) throw new Error(`nutrition day ${d.date} missing after upsert`)
-    for (const m of d.meals) {
+    const mine = vaultMeals.filter(r => r.nutrition_day_id === id).sort((a, b) => Number(a.position) - Number(b.position))
+    let next = existingMeals.filter(r => r.nutrition_day_id === id).reduce((m, r) => Math.max(m, Number(r.position)), 0) + 1
+    for (const [i, m] of d.meals.entries()) {
+      const position = mine[i] ? Number(mine[i].position) : next++
       incomingMeals.push({
         nutrition_day_id: id,
-        position: m.position,
+        position,
         slot: m.slot,
         name: m.name,
         items: m.items,
@@ -352,7 +360,7 @@ async function main() {
       })
     }
   }
-  await upsertRows('meals', r => `${r.nutrition_day_id}/${r.position}`, existingMeals, incomingMeals, 'nutrition_day_id,position')
+  await upsertRows('meals', r => `${r.nutrition_day_id}/${r.position}`, vaultMeals, incomingMeals, 'nutrition_day_id,position')
 
   // meal_library (seed from the facts sheet; app-added rows are left alone)
   const existingLib = await existingFor('meal_library')
