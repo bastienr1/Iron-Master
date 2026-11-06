@@ -9,8 +9,11 @@
  *                    with optional `Program range` and `Next session` columns.
  *                    Upper B also has a `## Lateral raises` table
  *                    (`Set | Style | Weight (kg) | Reps`) that becomes ONE exercise.
- *   Nutrition notes — frontmatter only: `date`, `training`, `kcal`, `protein_g`,
- *                    `fiber_g`, `sleep_h`, `status`.
+ *   Nutrition notes — frontmatter `date`, `training`, `kcal`, `protein_g`,
+ *                    `fiber_g`, `sleep_h`, `status`, then a meal table whose
+ *                    header has `Meal | Food | kcal | Protein (g)` and an
+ *                    optional `Fiber (g)` column (since 6 Nov 2026). Without
+ *                    that column meal fiber stays null.
  */
 
 import { resolveExercise } from './exercises.ts'
@@ -404,6 +407,7 @@ export function parseMealTable(markdown: string, path: string): { meals: ParsedM
   const cFood = col(table.header, 'Food')
   const cKcal = col(table.header, 'kcal')
   const cProt = col(table.header, 'Protein (g)')
+  const cFiber = col(table.header, 'Fiber (g)') // optional
   if (cKcal < 0 || cProt < 0) {
     unread.push(`${path}: meal table header missing kcal / Protein (g)`)
     return { meals, unread }
@@ -418,19 +422,21 @@ export function parseMealTable(markdown: string, path: string): { meals: ParsedM
     if (skippingApp) continue
     const kcal = cleanNumber(row.cells[cKcal] ?? '')
     const protein = cleanNumber(row.cells[cProt] ?? '')
+    const fiber = cFiber >= 0 ? cleanNumber(row.cells[cFiber] ?? '') : null
     if (!mealCell && !food) continue
     if (kcal === null && protein === null) continue // planned slot, nothing eaten yet
     if (kcal === null || protein === null) {
       unread.push(`${path}: meal row with only one of kcal / protein — ${row.line.trim()}`)
       continue
     }
-    const item: ParsedMealItem = { name: food, grams: null, kcal, protein_g: protein, fiber_g: null, accuracy: accuracyOf(`${mealCell} ${food}`) }
+    const item: ParsedMealItem = { name: food, grams: null, kcal, protein_g: protein, fiber_g: fiber, accuracy: accuracyOf(`${mealCell} ${food}`) }
     if (!mealCell && meals.length) {
       // Continuation row: another dish of the previous meal.
       const prev = meals[meals.length - 1]
       prev.items.push(item)
       prev.kcal += kcal
       prev.protein_g = Math.round((prev.protein_g + protein) * 10) / 10
+      if (fiber !== null) prev.fiber_g = Math.round(((prev.fiber_g ?? 0) + fiber) * 10) / 10
       prev.raw_text += ` + ${food}`
       if (item.accuracy === 'estimated') prev.accuracy = 'estimated'
       continue
@@ -445,7 +451,7 @@ export function parseMealTable(markdown: string, path: string): { meals: ParsedM
       items: [item],
       kcal,
       protein_g: protein,
-      fiber_g: null,
+      fiber_g: fiber,
       accuracy: item.accuracy,
       raw_text: food,
     })

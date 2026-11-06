@@ -214,3 +214,41 @@ status: in-progress
   ])
   assert.equal(meals[1].position, 2)
 })
+
+test('an optional Fiber (g) column fills meal and item fiber', () => {
+  const md = `---
+type: nutrition-day
+date: 2026-11-06
+status: in-progress
+---
+
+| Meal | Food | kcal | Protein (g) | Fiber (g) |
+|---|---|---|---|---|
+| Breakfast ✅ (07:00) | Usual breakfast | 766 | 57 | ~5 |
+| Supplements ✅ | Omega-3, creatine | 10 | 0 | 0 |
+| Lunch ✅ (14:00) | Fried chicken, salad, eggs | 760 | 61 | 2.5 |
+| | White rice 150 g | 195 | 4 | ~0.6 |
+| Snack | Plan: apple | | | |
+| Dinner ✅ | Bowl with no fiber logged | 600 | 30 | |
+| **Running total** | After dinner | **~2,331** | **~152** | **~8.1** |
+`
+  const { meals, unread } = parseMealTable(md, 'x.md')
+  assert.deepEqual(unread, [])
+  assert.deepEqual(meals.map(m => [m.slot, m.fiber_g]), [
+    ['Breakfast', 5],
+    ['Supplements', 0],
+    ['Lunch', 3.1],
+    ['Dinner', null],
+  ])
+  assert.deepEqual(meals[2].items.map(i => i.fiber_g), [2.5, 0.6])
+})
+
+test('a meal table without a Fiber (g) column leaves fiber null', () => {
+  const md = `| Meal | Food | kcal | Protein (g) |
+|---|---|---|---|
+| Breakfast ✅ | Usual breakfast | 766 | 57 |
+`
+  const { meals } = parseMealTable(md, 'x.md')
+  assert.equal(meals[0].fiber_g, null)
+  assert.equal(meals[0].items[0].fiber_g, null)
+})
