@@ -8,7 +8,8 @@ import { findSlot, PROGRAM_SLOTS, type Day } from './program.ts'
 import { decide, type Verdict } from './progression.ts'
 import type { LoggedExerciseRecord } from './progressRows.ts'
 import { nextDay } from './sessionPlan.ts'
-import { mealTotals, validateParseResponse, type MealCard, type MealItem, type ParseResponse, type SetCard, type Accuracy, type ActivityCard, type ActivityKind } from './logCards.ts'
+import { mealTotals, validateParseResponse, type MealCard, type MealItem, type ParseResponse, type SetCard, type Accuracy, type ActivityCard, type ActivityKind, type WeighInCard } from './logCards.ts'
+import { WEIGH_IN_CONFLICT, type WeighInContext } from './weighIns.ts'
 import { sumMeals, type DayTotals } from './fuel.ts'
 import { todayIso, timeHm } from './dates.ts'
 
@@ -103,6 +104,7 @@ export interface WeighInRow {
   id: string
   date: string
   kg: number
+  context: WeighInContext
 }
 
 export interface ActivityRow {
@@ -404,13 +406,18 @@ export async function saveToLibrary(card: MealCard, category: string | null): Pr
 // Weigh-ins
 
 export async function fetchWeighIns(): Promise<WeighInRow[]> {
-  const { data, error } = await supabase.from('weigh_ins').select('id, date, kg').order('date')
+  const { data, error } = await supabase.from('weigh_ins').select('id, date, kg, context').order('date')
   if (error) fail('weigh_ins', error)
-  return (data ?? []) as WeighInRow[]
+  return ((data ?? []) as WeighInRow[]).map(w => ({ ...w, kg: Number(w.kg) }))
 }
 
-export async function upsertWeighIn(date: string, kg: number): Promise<void> {
-  const { error } = await supabase.from('weigh_ins').upsert({ date, kg }, { onConflict: 'user_id,date' })
+/**
+ * One row per day and context: a post-workout reading sits beside the fasted
+ * morning one instead of replacing it, and only a fasted reading replaces a
+ * fasted one. The trend reads the fasted rows (see weighIns.ts).
+ */
+export async function upsertWeighIn(date: string, card: WeighInCard): Promise<void> {
+  const { error } = await supabase.from('weigh_ins').upsert({ date, kg: card.kg, context: card.context }, { onConflict: WEIGH_IN_CONFLICT })
   if (error) fail('weigh_ins', error)
 }
 

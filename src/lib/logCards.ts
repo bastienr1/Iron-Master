@@ -4,6 +4,8 @@
  * app re-validates before showing or saving anything. Pure.
  */
 
+import { isWeighInContext, type WeighInContext } from './weighIns.ts'
+
 export type Accuracy = 'label' | 'weighed' | 'estimated'
 
 export interface SetCard {
@@ -39,6 +41,8 @@ export interface MealCard {
 export interface WeighInCard {
   kind: 'weigh_in'
   kg: number
+  /** When the reading was taken. Only a fasted morning reading feeds the trend. */
+  context: WeighInContext
   note: string | null
 }
 
@@ -138,7 +142,9 @@ export function validateCard(raw: unknown, knownExerciseKeys: ReadonlySet<string
     }
     case 'weigh_in': {
       if (!isNum(o.kg) || o.kg < 30 || o.kg > 200) return null
-      return { kind: 'weigh_in', kg: Math.round(o.kg * 10) / 10, note: strOrNull(o.note) }
+      // Cards saved before contexts existed have none: they were all morning readings.
+      const context: WeighInContext = isWeighInContext(o.context) ? o.context : 'fasted'
+      return { kind: 'weigh_in', kg: Math.round(o.kg * 10) / 10, context, note: strOrNull(o.note) }
     }
     case 'water': {
       if (!isNum(o.ml) || o.ml <= 0 || o.ml > 5000) return null

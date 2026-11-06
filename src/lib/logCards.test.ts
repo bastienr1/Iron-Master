@@ -44,7 +44,7 @@ test("a meal card like JT's pecho set totals 800 kcal / 64 g, worst accuracy win
 })
 
 test('weigh-in and water bounds', () => {
-  assert.deepEqual(validateCard({ kind: 'weigh_in', kg: 75.44 }, keys), { kind: 'weigh_in', kg: 75.4, note: null })
+  assert.deepEqual(validateCard({ kind: 'weigh_in', kg: 75.44 }, keys), { kind: 'weigh_in', kg: 75.4, context: 'fasted', note: null })
   assert.equal(validateCard({ kind: 'weigh_in', kg: 7 }, keys), null)
   assert.deepEqual(validateCard({ kind: 'water', ml: 500 }, keys), { kind: 'water', ml: 500, note: null })
   assert.equal(validateCard({ kind: 'water', ml: 0 }, keys), null)

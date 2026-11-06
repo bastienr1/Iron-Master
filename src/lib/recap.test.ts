@@ -32,15 +32,24 @@ test('recap for week 44 matches the design: 4/4 sessions, 841 reps, 10 level ups
   assert.equal(r.bodyweight.count, 0)
 })
 
-test('bodyweight unlocks after 3 weigh-ins with a per-week slope', () => {
+test('bodyweight unlocks after 3 fasted weigh-ins with a per-week slope; other readings do not count', () => {
   const r = buildRecap('2026-11-01', sessions, days, [
-    { date: '2026-10-20', kg: 75.0 },
-    { date: '2026-10-27', kg: 75.2 },
-    { date: '2026-11-03', kg: 75.4 },
+    { date: '2026-10-20', kg: 75.0, context: 'fasted' },
+    { date: '2026-10-27', kg: 75.2, context: 'fasted' },
+    { date: '2026-11-03', kg: 75.4, context: 'fasted' },
+    { date: '2026-11-03', kg: 75.9, context: 'post_workout' },
   ])
   assert.equal(r.bodyweight.unlocked, true)
+  assert.equal(r.bodyweight.count, 3)
   assert.equal(r.bodyweight.perWeekKg, 0.2)
   assert.equal(r.bodyweight.latest?.kg, 75.4)
+
+  const locked = buildRecap('2026-11-01', sessions, days, [
+    { date: '2026-10-20', kg: 75.0, context: 'fasted' },
+    { date: '2026-10-27', kg: 75.2, context: 'fasted' },
+    { date: '2026-11-03', kg: 75.9, context: 'post_workout' },
+  ])
+  assert.equal(locked.bodyweight.unlocked, false)
 })
 
 test('an empty week has a plain headline', () => {
