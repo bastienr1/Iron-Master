@@ -32,7 +32,9 @@ import { todayIso } from '../lib/dates.ts'
 import { EXERCISES, exerciseName } from '../lib/exercises.ts'
 import { findSlot } from '../lib/program.ts'
 import { activityText, mealTotals, validateParseResponse, type LogCard, type MealCard, type ParseResponse, type SetCard } from '../lib/logCards.ts'
+import type { WeighInContext } from '../lib/weighIns.ts'
 import { rangeText } from '../lib/sessionPlan.ts'
+import { WEIGH_IN_CONTEXTS, WEIGH_IN_CONTEXT_LABEL, countsForTrend } from '../lib/weighIns.ts'
 import { useAsync } from '../lib/useAsync.ts'
 
 const KEYS = new Set(Object.keys(EXERCISES))
@@ -151,8 +153,8 @@ export default function Log() {
           break
         }
         case 'weigh_in':
-          await upsertWeighIn(date, cs.card.kg)
-          savedText = 'Weigh-in saved'
+          await upsertWeighIn(date, cs.card)
+          savedText = countsForTrend(cs.card) ? 'Weigh-in saved' : `Weigh-in saved (${WEIGH_IN_CONTEXT_LABEL[cs.card.context]}, not used for the trend)`
           break
         case 'water': {
           const total = await addWater(date, cs.card.ml)
@@ -251,7 +253,7 @@ function CardView({ state, sessions, onSave, onDiscard, onEdit }: { state: CardS
         <PrimaryButton onClick={onSave} className="flex-1">
           {card.kind === 'meal' ? 'Save to today' : card.kind === 'set' ? 'Save set' : card.kind === 'note' ? 'Keep' : 'Save'}
         </PrimaryButton>
-        {(card.kind === 'meal' || card.kind === 'set') && <GhostButton onClick={() => setEditing(v => !v)}>{editing ? 'Done' : 'Edit'}</GhostButton>}
+        {(card.kind === 'meal' || card.kind === 'set' || card.kind === 'weigh_in') && <GhostButton onClick={() => setEditing(v => !v)}>{editing ? 'Done' : 'Edit'}</GhostButton>}
         <GhostButton onClick={onDiscard} className="text-muted">
           ✕
         </GhostButton>
@@ -272,6 +274,24 @@ function CardView({ state, sessions, onSave, onDiscard, onEdit }: { state: CardS
         {card.kind === 'activity' && activityText(card)}
         {card.kind === 'note' && 'Note'}
       </span>
+      {card.kind === 'weigh_in' &&
+        (editing ? (
+          <select
+            value={card.context}
+            onChange={e => onEdit({ ...card, context: e.target.value as WeighInContext })}
+            className="bg-surface-2 border border-line rounded-lg px-2 py-1.5 text-sm outline-none"
+          >
+            {WEIGH_IN_CONTEXTS.map(c => (
+              <option key={c} value={c}>
+                {WEIGH_IN_CONTEXT_LABEL[c]}
+              </option>
+            ))}
+          </select>
+        ) : (
+          <span className={`font-mono text-[11px] ${countsForTrend(card) ? 'text-mint' : 'text-muted'}`}>
+            {countsForTrend(card) ? '● fasted · counts for the trend' : `○ ${WEIGH_IN_CONTEXT_LABEL[card.context]} · kept, not used for the trend`}
+          </span>
+        ))}
       {card.kind === 'note' && <p className="text-sm">{card.text}</p>}
       {card.kind !== 'note' && card.note && <p className="text-xs text-muted">{card.note}</p>}
       {footer}

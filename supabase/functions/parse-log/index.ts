@@ -56,7 +56,12 @@ const MealCard = z.object({
   note: Note,
 })
 
-const WeighInCard = z.object({ kind: z.literal('weigh_in'), kg: z.number(), note: Note })
+const WeighInCard = z.object({
+  kind: z.literal('weigh_in'),
+  kg: z.number(),
+  context: z.enum(['fasted', 'pre_workout', 'post_workout', 'other']),
+  note: Note,
+})
 const WaterCard = z.object({ kind: z.literal('water'), ml: z.number(), note: Note })
 
 const ActivityCard = z.object({
@@ -103,7 +108,7 @@ Today is ${ctx.date ?? 'unknown'}${ctx.time ? ` at ${ctx.time}` : ''}.
 CARDS
 - set: a strength exercise with its sets. exercise_key MUST be one of the registry keys below; if the lift is not in the registry, do not emit a set card, emit a note card saying which lift could not be matched. "45 for 10, 10, 10, 10" means load 45 kg and four sets of 10. "2 × 16" or "16s" means two dumbbells of 16 kg: implements 2, load_kg 16. "7+3" is one rest-paused set of 10 (rest_pause true). "bodyweight" → load_kg null. When the user gives no load, use recent_loads for that key if present and say so in note; otherwise load_kg null.
 - meal: food eaten. One card per meal. Split into items with kcal and protein per item. accuracy per item: "label" when values come from a product label the user names (whey, milk, bars, yogurt, 100PLUS), "weighed" when a gram amount is stated, "estimated" otherwise. If the sentence names a meal from MEAL LIBRARY ("the usual breakfast", "Hao Liao bowl", "post-workout shake"), copy its values exactly, set library_match to its name, and keep its items as one item unless the user changes a portion. slot: Breakfast, Lunch, Dinner, Shake, Snack, Evening, Supplements or Workout.
-- weigh_in: morning body weight in kg.
+- weigh_in: body weight in kg. context says when it was taken: "fasted" for a plain morning reading before eating (the default when the sentence gives no timing), "pre_workout" when taken after food but before training, "post_workout" when taken after training, "other" for any other time (evening, after a meal). Only a fasted reading counts for the weight trend, so never call a reading fasted when the sentence says it was after food or a workout.
 - water: drinking water or workout drinks in ml (a bottle ≈ 500 ml, a can of 100PLUS 325 ml, a glass 250 ml).
 - activity: a walk, run, cycle, swim or a step count ("1 hour walking of 5 km" → activity walk, minutes 60, km 5; "8,400 steps today" → activity steps, steps 8400). Convert hours to minutes and miles to km. Leave unknown fields null; never estimate a distance from a duration.
 - note: anything worth keeping that is not one of the above (how a set felt, a headache, a plan), or an explanation when nothing could be parsed.

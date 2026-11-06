@@ -4,6 +4,7 @@
 
 import { TARGETS } from './targets.ts'
 import type { Verdict } from './progression.ts'
+import { trendWeighIns, type WeighInContext } from './weighIns.ts'
 
 export interface RecapSession {
   date: string
@@ -22,6 +23,8 @@ export interface RecapDay {
 export interface WeighIn {
   date: string
   kg: number
+  /** Only fasted readings feed the trend; others are kept but ignored here. */
+  context: WeighInContext
 }
 
 export interface WeekRange {
@@ -115,7 +118,7 @@ export function buildRecap(dateIso: string, sessions: RecapSession[], days: Reca
     }
   })
 
-  const sorted = [...weighIns].sort((a, b) => a.date.localeCompare(b.date))
+  const sorted = trendWeighIns(weighIns)
   const latest = sorted.length ? sorted[sorted.length - 1] : null
   let perWeekKg: number | null = null
   if (sorted.length >= 3) {

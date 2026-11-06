@@ -120,14 +120,14 @@ export default function Recap() {
                 {recap.bodyweight.perWeekKg} kg / week
               </span>
               <span className="text-[13px] text-[#c9d4d2] leading-[1.4]">
-                Target +0.06 to +0.12 kg a week (0.25–0.5 kg a month). {recap.bodyweight.count} weigh-ins so far
+                Target +0.06 to +0.12 kg a week (0.25–0.5 kg a month). {recap.bodyweight.count} fasted morning weigh-ins so far
                 {recap.bodyweight.latest ? `, last on ${dayMonth(recap.bodyweight.latest.date)}` : ''}.
               </span>
             </Card>
           ) : (
             <div className="border border-dashed border-[#4a5654] rounded-[18px] p-4 flex flex-col gap-1.5">
               <Eyebrow>Bodyweight trend</Eyebrow>
-              <span className="font-display font-extrabold text-2xl uppercase">Unlocks after 3 weigh-ins</span>
+              <span className="font-display font-extrabold text-2xl uppercase">Unlocks after 3 fasted weigh-ins</span>
               <span className="text-[13px] text-[#c9d4d2] leading-[1.4]">
                 Say "weighed 75.4 this morning" in Log. {recap.bodyweight.count} of 3 logged. Last known: 75 kg on 16 Oct. Target gain 0.25–0.5 kg a month.
               </span>
