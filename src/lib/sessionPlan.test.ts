@@ -71,4 +71,8 @@ test('Lower A prescription: front squat pushes to 47.5 kg', () => {
 test('range text', () => {
   assert.equal(rangeText(slotsFor('lower_a')[1]), '3 × 10 per side')
   assert.equal(rangeText(slotsFor('upper_a')[0]), '4 × 6–10')
+  assert.deepEqual(slotsFor('lower_b').map(s => s.exercise_key), [
+    'barbell_rdl', 'front_squat', 'barbell_forward_lunge', 'single_leg_calf_raise', 'ab_wheel',
+  ])
+  assert.equal(rangeText(slotsFor('lower_b')[4]), '3 × 8–12')
 })

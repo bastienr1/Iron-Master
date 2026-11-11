@@ -125,7 +125,7 @@ test('synthetic: a rest-paused bonus set beyond the programmed count does not bl
   assert.equal(d.nextLoadText, 'heavier KB')
 })
 
-test('progress screen rows: Push 9, Stay 10 (9 + 1 bodyweight), New 3', () => {
+test('progress screen rows: Push 9, Stay 10 (9 + 1 bodyweight), New 6', () => {
   const records: LoggedExerciseRecord[] = decided.flatMap(s =>
     s.exercises.map(e => ({
       exercise_key: e.exercise_key,
@@ -141,12 +141,14 @@ test('progress screen rows: Push 9, Stay 10 (9 + 1 bodyweight), New 3', () => {
     })),
   )
   const rows = buildProgressRows(records)
-  assert.equal(rows.length, 22)
-  assert.deepEqual(countRows(rows), { push: 9, stay: 10, new: 3 })
+  // The fixture predates the 11 Nov Lower B changes: its dead bug, walking lunge
+  // and DB RDL stay as history rows, and the three new lifts show as New.
+  assert.equal(rows.length, 25)
+  assert.deepEqual(countRows(rows), { push: 9, stay: 10, new: 6 })
   assert.equal(rows.filter(r => r.bodyweight).length, 1)
   assert.deepEqual(
     rows.filter(r => r.filter === 'new').map(r => r.key).sort(),
-    ['close_grip_bench', 'db_shrug', 'rear_delt_fly'],
+    ['ab_wheel', 'barbell_forward_lunge', 'barbell_rdl', 'close_grip_bench', 'db_shrug', 'rear_delt_fly'],
   )
   const row = rows.find(r => r.key === 'chest_supported_row')!
   assert.equal(row.filter, 'push')

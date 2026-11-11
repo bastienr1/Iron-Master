@@ -37,7 +37,7 @@ export interface Prescription {
   restSeconds: number
 }
 
-const COMPOUNDS = new Set(['bench_press', 'pull_up', 'front_squat', 'db_rdl', 'single_leg_db_rdl', 'bulgarian_split_squat', 'incline_db_press', 'chest_supported_row', 'close_grip_bench', 'db_walking_lunge', 'seated_db_ohp', 'arnold_press'])
+const COMPOUNDS = new Set(['bench_press', 'pull_up', 'front_squat', 'db_rdl', 'single_leg_db_rdl', 'bulgarian_split_squat', 'incline_db_press', 'chest_supported_row', 'close_grip_bench', 'db_walking_lunge', 'barbell_rdl', 'barbell_forward_lunge', 'seated_db_ohp', 'arnold_press'])
 
 export function restFor(key: string): number {
   return COMPOUNDS.has(key) ? 120 : 90

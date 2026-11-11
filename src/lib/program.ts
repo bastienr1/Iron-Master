@@ -62,11 +62,11 @@ export const PROGRAM_SLOTS: readonly ProgramSlot[] = [
   slot('upper_b', 7, 'hammer_curl', 3, 10, 12),
   slot('upper_b', 8, 'close_grip_bench', 3, 10, 12),
 
-  slot('lower_b', 1, 'db_rdl', 3, 8, 10),
+  slot('lower_b', 1, 'barbell_rdl', 3, 8, 10),
   slot('lower_b', 2, 'front_squat', 3, 10, 12),
-  slot('lower_b', 3, 'db_walking_lunge', 3, 10, 12, true),
+  slot('lower_b', 3, 'barbell_forward_lunge', 3, 10, 12, true),
   slot('lower_b', 4, 'single_leg_calf_raise', 3, 12, 15, true),
-  slot('lower_b', 5, 'dead_bug', 3, 10, 10, true),
+  slot('lower_b', 5, 'ab_wheel', 3, 8, 12),
 ]
 
 export function findSlot(day: Day, exerciseKey: string): ProgramSlot | null {
