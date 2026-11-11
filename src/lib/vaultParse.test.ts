@@ -139,6 +139,9 @@ test('exercise aliases resolve to canonical keys', () => {
   assert.equal(resolveExercise('Barbell bench press'), 'bench_press')
   assert.equal(resolveExercise('Overhead DB triceps extension'), 'overhead_db_triceps')
   assert.equal(resolveExercise('Standing calf raise (barbell in rack)'), 'standing_calf_raise')
+  assert.equal(resolveExercise('Barbell Romanian deadlift'), 'barbell_rdl')
+  assert.equal(resolveExercise('Barbell forward lunge'), 'barbell_forward_lunge')
+  assert.equal(resolveExercise('[Ab wheel rollout](https://www.youtube.com/watch?v=rqiTPdK1c_I) (from the knees)'), 'ab_wheel')
   assert.equal(resolveExercise('Leg press'), null)
 })
 

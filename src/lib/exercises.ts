@@ -144,6 +144,24 @@ export const EXERCISES: Record<string, ExerciseDef> = {
     loading: 'bodyweight',
     aliases: ['dead bugs', 'deadbug'],
   },
+  // Lower B from 11 Nov 2026: barbell RDL (logged under db_rdl since 4 Nov),
+  // barbell forward lunge in place of the DB walking lunge, ab wheel in place
+  // of the dead bug. The older keys stay for the history.
+  barbell_rdl: {
+    name: 'Barbell Romanian deadlift',
+    loading: 'barbell',
+    aliases: ['barbell rdl', 'barbell romanian deadlifts', 'bb rdl'],
+  },
+  barbell_forward_lunge: {
+    name: 'Barbell forward lunge',
+    loading: 'barbell',
+    aliases: ['barbell lunge', 'barbell lunges', 'barbell forward lunges', 'forward lunge', 'forward lunges'],
+  },
+  ab_wheel: {
+    name: 'Ab wheel rollout',
+    loading: 'bodyweight',
+    aliases: ['ab wheel', 'ab wheel rollouts', 'ab rollout', 'ab rollouts', 'kneeling ab wheel'],
+  },
 }
 
 /** Normalise a raw cell: drop links and parentheticals, lower-case, collapse spaces. */
