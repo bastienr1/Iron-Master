@@ -1,8 +1,9 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import TalkBar from '../components/TalkBar.tsx'
+import Usuals from '../components/Usuals.tsx'
 import { Bar, Card, ClockTag, Empty, ErrorNote, Eyebrow, SectionTitle, Title } from '../components/ui.tsx'
-import { dayTotals, fetchActivities, fetchDay, fetchSessions, lastDoneDay, type ActivityRow, type SessionRow } from '../lib/data.ts'
+import { dayTotals, fetchActivities, fetchDay, fetchDays, fetchLibrary, fetchSessions, lastDoneDay, type ActivityRow, type SessionRow } from '../lib/data.ts'
 import { hourNow, shortDate, timeHm, todayIso } from '../lib/dates.ts'
 import { formatKcal, periodOf, remaining, restOfDayPlan } from '../lib/fuel.ts'
 import { activityText } from '../lib/logCards.ts'
@@ -28,9 +29,9 @@ export default function Today() {
   const date = todayIso()
   const navigate = useNavigate()
   const [text, setText] = useState('')
-  const { data, error, loading } = useAsync(async () => {
-    const [sessions, day, activities] = await Promise.all([fetchSessions(), fetchDay(date), fetchActivities(date)])
-    return { sessions, day, activities }
+  const { data, error, loading, reload } = useAsync(async () => {
+    const [sessions, day, activities, library, days] = await Promise.all([fetchSessions(), fetchDay(date), fetchActivities(date), fetchLibrary(), fetchDays()])
+    return { sessions, day, activities, library, days }
   }, [date])
 
   const sessions = data?.sessions ?? []
@@ -136,6 +137,10 @@ export default function Today() {
           </Row>
         )}
       </Card>
+
+      {data && (
+        <Usuals date={date} hour={hourNow()} library={data.library} days={data.days} sessionToday={sessions.some(s => s.date === date)} onChanged={reload} />
+      )}
 
       <Card tone="outline" className="flex flex-col gap-2.5">
         <div className="flex gap-2 items-center">
