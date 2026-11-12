@@ -1,6 +1,6 @@
 /**
  * Meal library seed, transcribed from Health/Meals Nutritional Facts Sheet.md
- * (updated 2026-11-01). Typed data, inserted by the import script.
+ * (updated 2026-11-12). Typed data, inserted by the import script.
  */
 export type Accuracy = 'label' | 'weighed' | 'estimated'
 export type Category = 'breakfast' | 'shake' | 'lunch' | 'dinner' | 'snack' | 'supplement' | 'drink' | 'fiber'
@@ -165,10 +165,10 @@ export const MEAL_LIBRARY: readonly MealSeed[] = [
   {
     name: 'Workout drinks',
     category: 'drink',
-    portion: '2 × 100PLUS Original + 1 × 100PLUS Zero',
-    kcal: 128, protein_g: 0, fiber_g: 0, accuracy: 'label',
-    items: [it('100PLUS Original, 2 cans', 650, 128, 0, 0, 'label'), it('100PLUS Zero', 325, 0, 0, 0, 'label')],
-    notes: '~975 ml, ~290 mg sodium',
+    portion: '1 × 100PLUS Original + 1 × 100PLUS Zero',
+    kcal: 64, protein_g: 0, fiber_g: 0, accuracy: 'label',
+    items: [it('100PLUS Original', 325, 64, 0, 0, 'label'), it('100PLUS Zero', 325, 0, 0, 0, 'label')],
+    notes: '650 ml · the two cans of the last five sessions',
   },
   {
     name: 'Chicken leg',
@@ -208,6 +208,47 @@ export const MEAL_LIBRARY: readonly MealSeed[] = [
     portion: '150 g',
     kcal: 83, protein_g: 12.5, fiber_g: 0, accuracy: 'label',
     items: [it('Greek yogurt', 150, 83, 12.5, 0, 'label')],
+    notes: null,
+  },
+  // Regulars added 2026-11-12 from the sheet's Regulars table.
+  {
+    name: 'Chihuahua wrap',
+    category: 'lunch',
+    portion: 'SaladStop! Chihuahua wrap: the bowl in a tortilla',
+    kcal: 1092, protein_g: 63, fiber_g: 18, accuracy: 'estimated',
+    items: [it('SaladStop! Chihuahua wrap', null, 1092, 63, 18, 'estimated')],
+    notes: 'kcal from SaladStop! · protein and fiber estimated',
+  },
+  {
+    name: 'Chihuahua bowl',
+    category: 'dinner',
+    portion: 'SaladStop! Chihuahua bowl: chicken, quinoa, spinach, cheddar, avocado, black beans, corn',
+    kcal: 820, protein_g: 56, fiber_g: 15.4, accuracy: 'label',
+    items: [it('SaladStop! Chihuahua bowl', null, 820, 56, 15.4, 'label')],
+    notes: 'SaladStop! nutrition panel',
+  },
+  {
+    name: 'Muscle Beach bowl',
+    category: 'dinner',
+    portion: 'Heybo Muscle Beach: quinoa, chicken breast, broccoli, avocado, carrot salad, seeds',
+    kcal: 814, protein_g: 50, fiber_g: 15.2, accuracy: 'label',
+    items: [it('Heybo Muscle Beach bowl', null, 814, 50, 15.2, 'label')],
+    notes: 'Heybo nutrition panel',
+  },
+  {
+    name: 'Greek yogurt 250 g',
+    category: 'snack',
+    portion: '250 g',
+    kcal: 138, protein_g: 21, fiber_g: 0, accuracy: 'label',
+    items: [it('Greek yogurt', 250, 138, 21, 0, 'label')],
+    notes: null,
+  },
+  {
+    name: 'Yogurt bowl',
+    category: 'snack',
+    portion: '250 g Greek yogurt, 30 g granola, 1 banana, 1 apple',
+    kcal: 479, protein_g: 25.5, fiber_g: 9, accuracy: 'estimated',
+    items: [it('Greek yogurt', 250, 138, 21, 0, 'label'), it('Granola', 30, 141, 3, 2, 'label'), it('Banana, 1 medium', 120, 105, 1, 3, 'estimated'), it('Apple', 180, 95, 0.5, 4, 'estimated')],
     notes: null,
   },
 ]

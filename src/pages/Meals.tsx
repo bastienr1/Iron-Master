@@ -3,40 +3,14 @@
  */
 import { useMemo, useState } from 'react'
 import { AccuracyDot, AccuracyLegend, Card, ErrorNote, Eyebrow, Title } from '../components/ui.tsx'
-import { addMeal, bumpLibrary, dayTotals, fetchDay, fetchLibrary, type LibraryRow } from '../lib/data.ts'
+import { addMeal, bumpLibrary, dayTotals, fetchDays, fetchLibrary, type LibraryRow } from '../lib/data.ts'
 import { hourNow, todayIso } from '../lib/dates.ts'
 import { remaining } from '../lib/fuel.ts'
-import type { MealItem } from '../lib/logCards.ts'
 import { FIBER_FIXERS } from '../lib/targets.ts'
 import { useAsync } from '../lib/useAsync.ts'
+import { daysEaten, defaultSlot, libraryItems } from '../lib/usuals.ts'
 
 const SLOTS = ['Breakfast', 'Shake', 'Lunch', 'Snack', 'Dinner', 'Evening', 'Supplements', 'Workout']
-
-function defaultSlot(row: LibraryRow, hour: number): string {
-  switch (row.category) {
-    case 'breakfast':
-      return 'Breakfast'
-    case 'shake':
-      return 'Shake'
-    case 'lunch':
-      return 'Lunch'
-    case 'dinner':
-      return 'Dinner'
-    case 'supplement':
-      return 'Supplements'
-    case 'drink':
-      return 'Workout'
-    case 'fiber':
-      return hour >= 19 ? 'Evening' : 'Snack'
-    default:
-      return hour < 11 ? 'Breakfast' : hour < 15 ? 'Lunch' : hour < 20 ? 'Dinner' : 'Evening'
-  }
-}
-
-function itemsOf(row: LibraryRow): MealItem[] {
-  if (row.items?.length) return row.items
-  return [{ name: row.portion ?? row.name, grams: null, kcal: row.kcal, protein_g: Number(row.protein_g), fiber_g: row.fiber_g === null ? null : Number(row.fiber_g), accuracy: row.accuracy ?? 'estimated' }]
-}
 
 export default function Meals() {
   const date = todayIso()
@@ -47,24 +21,28 @@ export default function Meals() {
   const [toast, setToast] = useState<string | null>(null)
   const [err, setErr] = useState<string | null>(null)
   const state = useAsync(async () => {
-    const [library, day] = await Promise.all([fetchLibrary(), fetchDay(date)])
-    return { library, day }
+    const [library, days] = await Promise.all([fetchLibrary(), fetchDays()])
+    return { library, days }
   }, [date])
 
   const library = useMemo(() => state.data?.library ?? [], [state.data])
-  const rem = remaining(dayTotals(state.data?.day ?? null))
+  const days = useMemo(() => state.data?.days ?? [], [state.data])
+  const rem = remaining(dayTotals(days.find(d => d.date === date) ?? null))
+  // How often each meal was eaten over the last three weeks, from the meal
+  // history itself, so meals logged through the vault count too.
+  const eaten = useMemo(() => new Map(library.map(r => [r.id, daysEaten(r.name, days, date).count])), [library, days, date])
   const filtered = useMemo(() => {
     const needle = q.trim().toLowerCase()
-    const rows = library.filter(r => r.category !== 'fiber')
+    const rows = library.filter(r => r.category !== 'fiber').sort((a, b) => (eaten.get(b.id) ?? 0) - (eaten.get(a.id) ?? 0) || a.name.localeCompare(b.name))
     if (!needle) return rows
     return rows.filter(r => `${r.name} ${r.portion ?? ''} ${r.notes ?? ''}`.toLowerCase().includes(needle))
-  }, [library, q])
+  }, [library, q, eaten])
 
   async function logRow(row: LibraryRow, chosenSlot: string) {
     setBusy(true)
     setErr(null)
     try {
-      await addMeal(date, { slot: chosenSlot, name: row.name, items: itemsOf(row), raw_text: null })
+      await addMeal(date, { slot: chosenSlot, name: row.name, items: libraryItems(row), raw_text: null })
       await bumpLibrary(row, date)
       setToast(`${row.name} logged as ${chosenSlot.toLowerCase()} · ${row.kcal} kcal`)
       setOpen(null)
@@ -130,7 +108,7 @@ export default function Meals() {
               type="button"
               onClick={() => {
                 setOpen(isOpen ? null : row.id)
-                setSlot(defaultSlot(row, hourNow()))
+                setSlot(defaultSlot(row.category, hourNow()))
               }}
               className="w-full grid grid-cols-[1fr_52px_48px_40px] gap-x-2 gap-y-0.5 items-baseline px-3 py-[11px] text-left tabular-nums"
             >
@@ -140,7 +118,7 @@ export default function Meals() {
               <span className="text-right text-plate-yellow">{row.fiber_g === null ? '–' : `${Number(row.fiber_g)} g`}</span>
               <span className="col-span-4 text-xs text-muted">
                 <AccuracyDot accuracy={row.accuracy} /> {row.notes ?? row.portion ?? ''}
-                {row.times_eaten ? ` · ${row.times_eaten}×` : ''}
+                {eaten.get(row.id) ? ` · ${eaten.get(row.id)} of the last 21 days` : ''}
               </span>
             </button>
             {isOpen && (
