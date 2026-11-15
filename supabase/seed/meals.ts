@@ -38,10 +38,10 @@ export const MEAL_LIBRARY: readonly MealSeed[] = [
   {
     name: 'Supplements',
     category: 'supplement',
-    portion: 'Omega-3, 1 multivitamin, 4 scoops Cell-Tech creatine',
+    portion: 'Omega-3, 1 multivitamin, 1 scoop EC Sports creatine (5 g)',
     kcal: 10, protein_g: 0, fiber_g: 0, accuracy: 'label',
-    items: [it('Omega-3 softgel', null, 10, 0, 0, 'label'), it('Multivitamin', null, 0, 0, 0, 'label'), it('Cell-Tech creatine, 4 scoops', 7, 0, 0, 0, 'label')],
-    notes: '~5 g creatine a day',
+    items: [it('Omega-3 softgel', null, 10, 0, 0, 'label'), it('Multivitamin', null, 0, 0, 0, 'label'), it('EC Sports creatine monohydrate, 1 scoop', 5, 0, 0, 0, 'label')],
+    notes: '5 g creatine a day · 1 scoop',
   },
   {
     name: 'Post-workout shake',
