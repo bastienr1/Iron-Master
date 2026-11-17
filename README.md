@@ -18,7 +18,7 @@ nothing from React, Supabase, Node or the DOM and are tested with `node --test`.
 1. Copy `.env.example` to `.env.local` and fill it in. `VITE_*` values reach the
    browser (anon key only). The service-role key, `IMPORT_USER_ID` and
    `VAULT_ROOT` are read only by the import script.
-2. Run `supabase/migrations/0001_init.sql` in the Supabase SQL editor.
+2. Run `supabase/migrations/0001_init.sql` in the Supabase SQL editor, then the later migrations in order (`0002` … `0005`).
 3. Put your email in `IMPORT_USER_EMAIL`; the import script creates the user if
    it does not exist. The app itself never creates users.
 4. Paste `supabase/templates/magic-link.html` into Authentication → Email
@@ -56,3 +56,19 @@ For each logged lift, in order:
 
 Verified against the four real sessions from 28 Oct to 1 Nov 2026: all 16
 logged arrows reproduced.
+
+## Deload weeks
+
+The program deloads every 5th week. A row in `deload_weeks` (`week_start`, the
+Monday) marks the week; the first is 16–22 Nov 2026. Inside it:
+
+- Today and Train say **Deload**; the coach prescribes half the sets (rounded
+  up) at about 80% of each lift's last working load, rounded down to a 5 kg
+  grid on the barbell and whole kilos elsewhere. Bodyweight lifts keep their
+  load and lose half the sets.
+- Sessions started in the week carry `deload = true`. They are logged but not
+  scored: every lift gets **STAY** with reason "deload week, not scored", and
+  `toLoggedRecords` skips them, so the next normal week prescribes from the
+  week before the deload.
+- The vault exporter writes `deload: true` into the session note's
+  frontmatter, and the importer reads it back.

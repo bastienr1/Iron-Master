@@ -78,6 +78,7 @@ interface Session {
   day: Day
   status: string
   source: string
+  deload: boolean
   source_path: string | null
   session_exercises: Ex[]
 }
@@ -157,13 +158,13 @@ type: physique-session
 date: ${s.date}
 day: ${DAY_LABEL[s.day]}
 focus: ${FOCUS[s.day]}
-status: done
+${s.deload ? 'deload: true\n' : ''}status: done
 source: iron-master
 ---
 
-# ${DAY_LABEL[s.day]} — ${s.date}
+# ${DAY_LABEL[s.day]} — ${s.date}${s.deload ? ' (deload)' : ''}
 
-Part of [[Physique-Program-Lean-Bulk]]. Logged in Iron Master. Nutrition: [[${s.date}]].
+Part of [[Physique-Program-Lean-Bulk]]. Logged in Iron Master${s.deload ? ' in a deload week: half the sets at about 80%, not scored by the engine' : ''}. Nutrition: [[${s.date}]].
 
 | Exercise | Weight (kg) | Sets × reps | Program range | Next session |
 |---|---|---|---|---|
@@ -217,7 +218,7 @@ async function main() {
   const uid = await userId()
   const { data: sData, error: sErr } = await supabase
     .from('sessions')
-    .select('id, date, day, status, source, source_path, session_exercises(*)')
+    .select('id, date, day, status, source, deload, source_path, session_exercises(*)')
     .eq('user_id', uid)
     .eq('source', 'app')
     .eq('status', 'done')

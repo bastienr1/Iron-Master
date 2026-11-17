@@ -3,7 +3,8 @@ import { Link, useNavigate } from 'react-router-dom'
 import TalkBar from '../components/TalkBar.tsx'
 import Usuals from '../components/Usuals.tsx'
 import { Bar, Card, ClockTag, Empty, ErrorNote, Eyebrow, SectionTitle, Title } from '../components/ui.tsx'
-import { dayTotals, fetchActivities, fetchDay, fetchDays, fetchLibrary, fetchSessions, lastDoneDay, type ActivityRow, type SessionRow } from '../lib/data.ts'
+import { dayTotals, fetchActivities, fetchDay, fetchDays, fetchDeloadWeeks, fetchLibrary, fetchSessions, lastDoneDay, type ActivityRow, type SessionRow } from '../lib/data.ts'
+import { isDeloadDate } from '../lib/deload.ts'
 import { hourNow, shortDate, timeHm, todayIso } from '../lib/dates.ts'
 import { formatKcal, periodOf, remaining, restOfDayPlan } from '../lib/fuel.ts'
 import { activityText } from '../lib/logCards.ts'
@@ -30,8 +31,8 @@ export default function Today() {
   const navigate = useNavigate()
   const [text, setText] = useState('')
   const { data, error, loading, reload } = useAsync(async () => {
-    const [sessions, day, activities, library, days] = await Promise.all([fetchSessions(), fetchDay(date), fetchActivities(date), fetchLibrary(), fetchDays()])
-    return { sessions, day, activities, library, days }
+    const [sessions, day, activities, library, days, deloadWeeks] = await Promise.all([fetchSessions(), fetchDay(date), fetchActivities(date), fetchLibrary(), fetchDays(), fetchDeloadWeeks()])
+    return { sessions, day, activities, library, days, deloadWeeks }
   }, [date])
 
   const sessions = data?.sessions ?? []
@@ -39,6 +40,7 @@ export default function Today() {
   const doneToday = sessions.find(s => s.date === date && s.status === 'done') ?? null
   const liveToday = sessions.find(s => s.status === 'in-progress') ?? null
   const upcoming = nextDay(lastDoneDay(sessions))
+  const deload = isDeloadDate(date, data?.deloadWeeks ?? [])
   const totals = dayTotals(day)
   const rem = remaining(totals)
   const plan = restOfDayPlan(totals, periodOf(hourNow()))
@@ -50,7 +52,7 @@ export default function Today() {
       <header className="flex justify-between items-end">
         <div>
           <Eyebrow>
-            {shortDate(date)} · Lean bulk · Week {programWeek(date)}
+            {shortDate(date)} · Lean bulk · Week {programWeek(date)}{deload ? ' · Deload' : ''}
           </Eyebrow>
           <div className="flex items-baseline gap-2.5">
             <Title>Today</Title>
@@ -102,9 +104,11 @@ export default function Today() {
         !loading && (
           <Link to="/train" className="no-underline">
             <Card tone="outline" className="flex flex-col gap-1.5">
-              <span className="font-mono text-[11px] uppercase tracking-[0.08em] text-muted">Next session</span>
+              <span className="font-mono text-[11px] uppercase tracking-[0.08em] text-muted">{deload ? 'Next session · deload week' : 'Next session'}</span>
               <span className="font-display font-extrabold text-3xl leading-none uppercase">{DAY_LABEL[upcoming]}</span>
-              <span className="text-sm text-muted">{slotsFor(upcoming).length} exercises · tap to start the coach</span>
+              <span className="text-sm text-muted">
+                {slotsFor(upcoming).length} exercises{deload ? ', half the sets at ~80%' : ''} · tap to start the coach
+              </span>
             </Card>
           </Link>
         )

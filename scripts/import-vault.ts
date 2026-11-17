@@ -260,7 +260,7 @@ async function main() {
     'sessions',
     r => `${r.date}/${r.day}`,
     existingSessions,
-    decided.map(s => ({ user_id: USER_ID, date: s.date, day: s.day, source: 'vault', source_path: s.path })),
+    decided.map(s => ({ user_id: USER_ID, date: s.date, day: s.day, source: 'vault', source_path: s.path, deload: s.deload })),
     'user_id,date,day',
   )
   const sessionsNow = await existingFor('sessions')

@@ -44,12 +44,15 @@ export function Bar({ value, max, color }: { value: number; max: number; color: 
   )
 }
 
-export function VerdictChip({ verdict, size = 'sm' }: { verdict: Verdict | 'new'; size?: 'sm' | 'lg' }) {
-  const map: Record<Verdict | 'new', { label: string; cls: string }> = {
+export type ChipVerdict = Verdict | 'new' | 'deload'
+
+export function VerdictChip({ verdict, size = 'sm' }: { verdict: ChipVerdict; size?: 'sm' | 'lg' }) {
+  const map: Record<ChipVerdict, { label: string; cls: string }> = {
     push: { label: 'PUSH', cls: 'bg-plate-green text-ground' },
     stay: { label: 'STAY', cls: 'bg-plate-blue text-white' },
     progress_bw: { label: 'BW UP', cls: 'bg-plate-blue text-white' },
     new: { label: 'NEW', cls: 'bg-plate-yellow text-[#1a1a12]' },
+    deload: { label: 'DELOAD', cls: 'bg-plate-yellow text-[#1a1a12]' },
   }
   const m = map[verdict]
   const sz = size === 'lg' ? 'px-3 py-1 text-xl' : 'px-2 py-0.5 text-[13px]'
