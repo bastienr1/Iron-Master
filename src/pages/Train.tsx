@@ -11,6 +11,8 @@ import {
   decideFor,
   deleteSession,
   endSession,
+  deloadDecision,
+  fetchDeloadWeeks,
   fetchSessions,
   lastDoneDay,
   startSession,
@@ -21,13 +23,18 @@ import {
 } from '../lib/data.ts'
 import { mmss, todayIso } from '../lib/dates.ts'
 import { DAY_LABEL, DAYS, type Day } from '../lib/program.ts'
-import { CUES, latestByExercise, nextDay, prescribe, slotsFor, type Prescription } from '../lib/sessionPlan.ts'
+import { isDeloadDate } from '../lib/deload.ts'
+import { CUES, latestByExercise, nextDay, prescribe, slotsForSession, type Prescription } from '../lib/sessionPlan.ts'
 import { useAsync } from '../lib/useAsync.ts'
 
 export default function Train() {
   const navigate = useNavigate()
-  const sessionsState = useAsync(fetchSessions, [])
-  const sessions = useMemo(() => sessionsState.data ?? [], [sessionsState.data])
+  const sessionsState = useAsync(async () => {
+    const [sessions, deloadWeeks] = await Promise.all([fetchSessions(), fetchDeloadWeeks()])
+    return { sessions, deloadWeeks }
+  }, [])
+  const sessions = useMemo(() => sessionsState.data?.sessions ?? [], [sessionsState.data])
+  const deload = isDeloadDate(todayIso(), sessionsState.data?.deloadWeeks ?? [])
   const live = sessions.find(s => s.status === 'in-progress') ?? null
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState<string | null>(null)
@@ -53,7 +60,7 @@ export default function Train() {
     setBusy(true)
     setErr(null)
     try {
-      await startSession(todayIso(), day)
+      await startSession(todayIso(), day, deload)
       sessionsState.reload()
     } catch (e) {
       setErr(e instanceof Error ? e.message : String(e))
@@ -62,21 +69,25 @@ export default function Train() {
     }
   }
 
-  return <StartScreen sessions={sessions} busy={busy} error={err} onStart={day => void start(day)} />
+  return <StartScreen sessions={sessions} deload={deload} busy={busy} error={err} onStart={day => void start(day)} />
 }
 
 // ---------------------------------------------------------------------------
 
-function StartScreen({ sessions, busy, error, onStart }: { sessions: SessionRow[]; busy: boolean; error: string | null; onStart: (d: Day) => void }) {
+function StartScreen({ sessions, deload, busy, error, onStart }: { sessions: SessionRow[]; deload: boolean; busy: boolean; error: string | null; onStart: (d: Day) => void }) {
   const [day, setDay] = useState<Day>(() => nextDay(lastDoneDay(sessions)))
   const latest = useMemo(() => latestByExercise(toLoggedRecords(sessions)), [sessions])
-  const plan = prescribe(day, latest)
+  const plan = prescribe(day, latest, { deload })
   const suggested = nextDay(lastDoneDay(sessions))
   return (
     <main className="flex-1 flex flex-col gap-3 px-5 pt-7 pb-3">
       <header>
-        <Eyebrow>{day === suggested ? 'Next in the rotation' : 'Off rotation'}</Eyebrow>
+        <Eyebrow>
+          {deload ? 'Deload week · ' : ''}
+          {day === suggested ? 'Next in the rotation' : 'Off rotation'}
+        </Eyebrow>
         <Title>{DAY_LABEL[day]}</Title>
+        {deload && <p className="text-sm text-muted mt-1">Half the sets at about 80% of last time. Stop 3–4 reps short; nothing is scored this week.</p>}
       </header>
       <div className="grid grid-cols-4 gap-1.5" role="group" aria-label="Day">
         {DAYS.map(d => (
@@ -99,7 +110,7 @@ function StartScreen({ sessions, busy, error, onStart }: { sessions: SessionRow[
         ))}
       </Card>
       <PrimaryButton onClick={() => onStart(day)} disabled={busy} className="min-h-12 bg-plate-green text-ground font-display font-bold text-lg uppercase tracking-wide">
-        {busy ? 'Starting…' : `Start ${DAY_LABEL[day]}`}
+        {busy ? 'Starting…' : `Start ${DAY_LABEL[day]}${deload ? ' deload' : ''}`}
       </PrimaryButton>
       <Link to="/train/progress" className="text-center text-[13px] text-[#9fc0ff] py-2">
         See push or stay for every lift
@@ -117,8 +128,8 @@ function restKey(sessionId: string) {
 function Coach({ session, sessions, onChanged, onEnded }: { session: SessionRow; sessions: SessionRow[]; onChanged: () => void; onEnded: () => void }) {
   const others = useMemo(() => sessions.filter(s => s.id !== session.id), [sessions, session.id])
   const latest = useMemo(() => latestByExercise(toLoggedRecords(others)), [others])
-  const plan = useMemo(() => prescribe(session.day, latest), [session.day, latest])
-  const slots = slotsFor(session.day)
+  const plan = useMemo(() => prescribe(session.day, latest, { deload: session.deload }), [session.day, latest, session.deload])
+  const slots = slotsForSession(session.day, session.deload)
 
   // Local copy of the logged exercises, keyed by slot position; persisted on every set.
   const [logged, setLogged] = useState<Map<number, { load_kg: number | null; implements: number; sets: SetEntry[] }>>(() => {
@@ -220,7 +231,7 @@ function Coach({ session, sessions, onChanged, onEnded }: { session: SessionRow;
         const s = slots.find(x => x.position === position)
         if (!s) continue
         const carried = carriedAimFor(others, s.exercise_key, session.date)
-        const decided = decideFor(session.day, s.exercise_key, v.sets, v.load_kg, carried)
+        const decided = session.deload ? deloadDecision(s) : decideFor(session.day, s.exercise_key, v.sets, v.load_kg, carried)
         await upsertSessionExercise(session, position, { exercise_key: s.exercise_key, raw_name: plan.find(x => x.key === s.exercise_key)?.name ?? null, load_kg: v.load_kg, implements: v.implements, sets: v.sets }, decided)
       }
       await endSession(session.id)
@@ -242,7 +253,7 @@ function Coach({ session, sessions, onChanged, onEnded }: { session: SessionRow;
         <div className="flex justify-between items-end">
           <div>
             <Eyebrow>
-              Exercise {index + 1} of {slots.length} · {startedMin} min in
+              Exercise {index + 1} of {slots.length} · {startedMin} min in{session.deload ? ' · deload' : ''}
             </Eyebrow>
             <Title>{DAY_LABEL[session.day]}</Title>
           </div>

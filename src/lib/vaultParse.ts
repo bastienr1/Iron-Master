@@ -48,6 +48,8 @@ export interface ParsedSession {
   date: string
   day: Day
   path: string
+  /** Frontmatter `deload: true`: a deload-week session, logged but not scored. */
+  deload: boolean
   exercises: ParsedExercise[]
   unread: string[]
 }
@@ -254,10 +256,11 @@ export function parseSessionNote(markdown: string, path: string): ParsedSession 
   const unread: string[] = []
   const day = parseDay(fm.day)
   const date = fm.date ?? ''
+  const deload = (fm.deload ?? '').trim().toLowerCase() === 'true'
   if (!day) unread.push(`${path}: frontmatter day "${fm.day ?? ''}" not recognised`)
   if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) unread.push(`${path}: frontmatter date "${date}" not recognised`)
   const exercises: ParsedExercise[] = []
-  if (!day) return { date, day: 'upper_a', path, exercises, unread }
+  if (!day) return { date, day: 'upper_a', path, deload, exercises, unread }
 
   let position = 0
   for (const table of extractTables(markdown)) {
@@ -359,7 +362,7 @@ export function parseSessionNote(markdown: string, path: string): ParsedSession 
       })
     }
   }
-  return { date, day, path, exercises, unread }
+  return { date, day, path, deload, exercises, unread }
 }
 
 function cleanNumber(cell: string): number | null {

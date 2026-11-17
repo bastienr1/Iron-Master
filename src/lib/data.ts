@@ -4,7 +4,8 @@
  */
 import { supabase } from './supabase.ts'
 import { EXERCISES, exerciseLoading } from './exercises.ts'
-import { findSlot, PROGRAM_SLOTS, type Day } from './program.ts'
+import { isDeloadDate } from './deload.ts'
+import { findSlot, PROGRAM_SLOTS, type Day, type ProgramSlot } from './program.ts'
 import { decide, type Verdict } from './progression.ts'
 import type { LoggedExerciseRecord } from './progressRows.ts'
 import { nextDay } from './sessionPlan.ts'
@@ -49,6 +50,8 @@ export interface SessionRow {
   day: Day
   source: 'vault' | 'app'
   status: 'in-progress' | 'done'
+  /** Logged in a deload week: half the sets, lighter loads, never the record the coach prescribes from. */
+  deload: boolean
   started_at: string | null
   ended_at: string | null
   notes: string | null
@@ -139,7 +142,7 @@ function fail(table: string, error: { message: string } | null): never {
 export async function fetchSessions(): Promise<SessionRow[]> {
   const { data, error } = await supabase
     .from('sessions')
-    .select('id, date, day, source, status, started_at, ended_at, notes, session_exercises(*)')
+    .select('id, date, day, source, status, deload, started_at, ended_at, notes, session_exercises(*)')
     .order('date', { ascending: false })
   if (error) fail('sessions', error)
   const rows = (data ?? []) as unknown as SessionRow[]
@@ -150,7 +153,8 @@ export async function fetchSessions(): Promise<SessionRow[]> {
 export function toLoggedRecords(sessions: SessionRow[]): LoggedExerciseRecord[] {
   const out: LoggedExerciseRecord[] = []
   for (const s of sessions) {
-    if (s.status !== 'done') continue
+    // A deload session is not scored: the week after prescribes from the week before.
+    if (s.status !== 'done' || s.deload) continue
     for (const e of s.session_exercises) {
       if (!e.verdict) continue
       out.push({
@@ -175,11 +179,20 @@ export function lastDoneDay(sessions: SessionRow[]): Day | null {
   return done[0]?.day ?? null
 }
 
-export async function startSession(date: string, day: Day): Promise<SessionRow> {
+/** Mondays of the deload weeks, ascending (`deload_weeks.week_start`). */
+export async function fetchDeloadWeeks(): Promise<string[]> {
+  const { data, error } = await supabase.from('deload_weeks').select('week_start').order('week_start', { ascending: true })
+  if (error) fail('deload_weeks', error)
+  return ((data ?? []) as { week_start: string }[]).map(r => r.week_start)
+}
+
+/** Start a session; `deload` defaults to whether the date falls in a deload week. */
+export async function startSession(date: string, day: Day, deload?: boolean): Promise<SessionRow> {
+  const isDeload = deload ?? isDeloadDate(date, await fetchDeloadWeeks())
   const { data, error } = await supabase
     .from('sessions')
-    .upsert({ date, day, source: 'app', status: 'in-progress', started_at: new Date().toISOString() }, { onConflict: 'user_id,date,day' })
-    .select('id, date, day, source, status, started_at, ended_at, notes, session_exercises(*)')
+    .upsert({ date, day, source: 'app', status: 'in-progress', deload: isDeload, started_at: new Date().toISOString() }, { onConflict: 'user_id,date,day' })
+    .select('id, date, day, source, status, deload, started_at, ended_at, notes, session_exercises(*)')
     .single()
   if (error) fail('sessions', error)
   return data as unknown as SessionRow
@@ -188,7 +201,7 @@ export async function startSession(date: string, day: Day): Promise<SessionRow> 
 /** Previous session's carried aim for a lift (the note's "aim for 10"), if any. */
 export function carriedAimFor(sessions: SessionRow[], exerciseKey: string, beforeDate: string, excludeSessionId?: string): number | null {
   const prior = sessions
-    .filter(s => s.status === 'done' && s.date <= beforeDate && s.id !== excludeSessionId)
+    .filter(s => s.status === 'done' && !s.deload && s.date <= beforeDate && s.id !== excludeSessionId)
     .sort((a, b) => b.date.localeCompare(a.date))
   for (const s of prior) {
     const e = s.session_exercises.find(x => x.exercise_key === exerciseKey)
@@ -212,6 +225,11 @@ export function decideFor(day: Day, exerciseKey: string, sets: SetEntry[], loadK
   const repMax = slot?.rep_max ?? 12
   const d = decide({ sets, programmedSets, repMin, repMax, carriedAim, loading: exerciseLoading(exerciseKey), loadKg })
   return { verdict: d.verdict, target_reps: d.target, next_load_text: d.nextLoadText || null, reason: d.reason, above_range: d.aboveRange }
+}
+
+/** A deload set is logged but not scored: STAY, no next load, so nothing moves. */
+export function deloadDecision(slot: ProgramSlot | null): DecidedSet {
+  return { verdict: 'stay', target_reps: slot?.rep_max ?? 12, next_load_text: null, reason: 'deload week, not scored', above_range: false }
 }
 
 export function loadTextOf(loadKg: number | null, implementsN: number): string {
@@ -513,7 +531,7 @@ export async function saveSetCard(card: SetCard, sessions: SessionRow[]): Promis
   }
   const position = session.session_exercises.reduce((m, x) => Math.max(m, x.position), 0) + 1
   const carried = carriedAimFor(sessions, card.exercise_key, date, session.id)
-  const decided = decideFor(session.day, card.exercise_key, card.sets, card.load_kg, carried)
+  const decided = session.deload ? deloadDecision(findSlot(session.day, card.exercise_key)) : decideFor(session.day, card.exercise_key, card.sets, card.load_kg, carried)
   const row = await upsertSessionExercise(session, position, card, decided)
   if (session.status === 'in-progress' && !sessions.some(s => s.id === session!.id)) {
     // a quick log outside the coach: close it right away
